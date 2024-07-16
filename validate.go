@@ -39,22 +39,27 @@ func (cfg *apiConfig) handlerJSON(w http.ResponseWriter, r *http.Request) {
 		}
 		joinedBody := strings.Join(splitBody, " ")
 
-		respBody := returnVals{
+		payload := returnVals{
 			Cleaned_body: joinedBody,
 		}
-
-		data, err := json.Marshal(respBody)
-		if err != nil {
-			log.Printf("Error marshalling JSON: %s", err)
-			w.WriteHeader(500)
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-		w.Write(data)
+		respondWithJSON(w, 200, payload)
 	} else {
 		respondWithError(w, 400, "Body must be 140 characters or less")
 	}
+}
+
+func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+	data, err := json.Marshal(payload)
+
+	if err != nil {
+		log.Printf("Error marshalling JSON: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	w.Write(data)
 }
 
 func respondWithError(w http.ResponseWriter, code int, msg string) {
