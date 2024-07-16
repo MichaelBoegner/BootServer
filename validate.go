@@ -7,6 +7,11 @@ import (
 	"strings"
 )
 
+type returnVals struct {
+	Error        string `json:"error,omitempty"`
+	Cleaned_body string `json:"cleaned_body,omitempty"`
+}
+
 func (cfg *apiConfig) handlerJSON(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 
@@ -21,11 +26,6 @@ func (cfg *apiConfig) handlerJSON(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error decoding parameters: %s", err)
 		w.WriteHeader(500)
 		return
-	}
-
-	type returnVals struct {
-		Error        string `json:"error"`
-		Cleaned_body string `json:"cleaned_body"`
 	}
 
 	if len(params.Body) <= 140 {
@@ -53,18 +53,23 @@ func (cfg *apiConfig) handlerJSON(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write(data)
 	} else {
-		respBody := returnVals{
-			Error: "Body is too long",
-		}
-
-		data, err := json.Marshal(respBody)
-		if err != nil {
-			log.Printf("Error marshalling JSON: %s", err)
-			w.WriteHeader(500)
-			return
-		}
-
-		w.WriteHeader(400)
-		w.Write(data)
+		respondWithError(w, 400, "Body must be 140 characters or less")
 	}
+}
+
+func respondWithError(w http.ResponseWriter, code int, msg string) {
+	respBody := returnVals{
+		Error: msg,
+	}
+
+	data, err := json.Marshal(respBody)
+
+	if err != nil {
+		log.Printf("Error marshalling JSON: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	w.WriteHeader(code)
+	w.Write(data)
 }
