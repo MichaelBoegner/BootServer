@@ -8,11 +8,12 @@ import (
 )
 
 type returnVals struct {
-	Error        string `json:"error,omitempty"`
-	Cleaned_body string `json:"cleaned_body,omitempty"`
+	Error string `json:"error,omitempty"`
+	Id    int    `json:"id,omitempty"`
+	Body  string `json:"body,omitempty"`
 }
 
-func (cfg *apiConfig) handlerJSON(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 
 	type acceptedVals struct {
@@ -40,7 +41,7 @@ func (cfg *apiConfig) handlerJSON(w http.ResponseWriter, r *http.Request) {
 		joinedBody := strings.Join(splitBody, " ")
 
 		payload := returnVals{
-			Cleaned_body: joinedBody,
+			Body: joinedBody,
 		}
 		respondWithJSON(w, 200, payload)
 	} else {

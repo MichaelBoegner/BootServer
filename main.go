@@ -1,6 +1,8 @@
 package main
 
 import (
+	"BootServer/database"
+	"fmt"
 	"log"
 	"net/http"
 )
@@ -25,7 +27,8 @@ func main() {
 	mux.HandleFunc("GET /api/reset", apiCfg.handlerReset)
 	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
 
-	mux.HandleFunc("POST /api/validate_chirp", apiCfg.handlerJSON)
+	mux.HandleFunc("POST /api/chirps", apiCfg.handlerChirps)
+	fmt.Printf("Database package function %v", database.NewDB())
 
 	srv := &http.Server{
 		Addr:    ":" + port,
