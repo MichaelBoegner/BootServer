@@ -1,6 +1,7 @@
 package database
 
 import (
+	"fmt"
 	"os"
 	"sync"
 )
@@ -20,11 +21,12 @@ type DBStructure struct {
 
 func NewDB(path string) (*DB, error) {
 	db := &DB{}
-	db.path = "./database.json"
+	db.path = path
 	db.mux = &sync.RWMutex{}
-	_, err := os.ReadFile(db.path)
+	data, err := os.ReadFile("database/database.json")
+	fmt.Printf("THIS IS ERR == %v, THIS IS DATA == %v", err, data)
 	if err != nil {
-		os.WriteFile(db.path, []byte(`{"chirps":{}}`), 0644)
+		err := os.WriteFile(db.path, []byte("{'test'}"), 0666)
 		return db, err
 	}
 	return db, nil

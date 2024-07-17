@@ -1,10 +1,11 @@
 package main
 
 import (
-	"BootServer/database"
 	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/michaelboegner/bootserver/database"
 )
 
 type apiConfig struct {
@@ -28,7 +29,9 @@ func main() {
 	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
 
 	mux.HandleFunc("POST /api/chirps", apiCfg.handlerChirps)
-	fmt.Printf("Database package function %v", database.NewDB())
+
+	db, err := database.NewDB("database/database.json")
+	fmt.Printf("DATABASE FUNCTION NEWDB ==  %v, AND THIS IS ERROR == %v", db, err)
 
 	srv := &http.Server{
 		Addr:    ":" + port,
