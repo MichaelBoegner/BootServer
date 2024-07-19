@@ -31,7 +31,10 @@ func main() {
 	mux.HandleFunc("POST /api/chirps", apiCfg.handlerChirps)
 
 	db, err := database.NewDB("database/database.json")
-	fmt.Printf("DATABASE FUNCTION NEWDB ==  %v, AND THIS IS ERROR == %v", db, err)
+	fmt.Printf("\n\nDATABASE FUNCTION NEWDB ==  %v, AND THIS IS ERROR == %v", db, err)
+
+	databaseStructure, err := db.LoadDB()
+	fmt.Printf("\n\nDATABASE STRUCTURE ==  %v, AND THIS IS ERROR == %v", databaseStructure, err)
 
 	srv := &http.Server{
 		Addr:    ":" + port,
