@@ -8,8 +8,9 @@ import (
 )
 
 type DB struct {
-	path string
-	mux  *sync.RWMutex
+	path              string
+	mux               *sync.RWMutex
+	databaseStructure *DBStructure
 }
 
 type Chirp struct {
@@ -52,18 +53,36 @@ func NewDB(path string) (*DB, error) {
 	}
 }
 
+func (db *DB) CreateChirp(body string) (Chirp, error) {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
+	chirp := Chirp{Body: body}
+
+	nextID := len(db.databaseStructure.Chirps) + 1
+	db.databaseStructure.Chirps[nextID] = chirp
+
+	marshaledChirp, err := json.Marshal(db.databaseStructure)
+	if err != nil {
+		return chirp, err
+	}
+
+	os.WriteFile(db.path, []byte(marshaledChirp), 0666)
+	return chirp, nil
+}
+
 func (db *DB) LoadDB() (*DBStructure, error) {
 	db.mux.Lock()
 	defer db.mux.Unlock()
 
 	data, err := os.ReadFile(db.path)
 
-	databaseStructure := &DBStructure{}
-	err = json.Unmarshal(data, databaseStructure)
+	db.databaseStructure = &DBStructure{}
+	err = json.Unmarshal(data, db.databaseStructure)
 
 	if err != nil {
-		return nil, err
+		return db.databaseStructure, err
 	}
 
-	return databaseStructure, nil
+	return db.databaseStructure, nil
 }

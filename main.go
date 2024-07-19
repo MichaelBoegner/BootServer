@@ -36,6 +36,12 @@ func main() {
 	databaseStructure, err := db.LoadDB()
 	fmt.Printf("\n\nDATABASE STRUCTURE ==  %v, AND THIS IS ERROR == %v", databaseStructure, err)
 
+	chirp, err := db.CreateChirp("This is a chirp")
+	fmt.Printf("\n\nCHIRP ==  %v, AND THIS IS ERROR == %v", chirp, err)
+
+	databaseStructure, err = db.LoadDB()
+	fmt.Printf("\n\nDATABASE STRUCTURE.CHIRPS AFTER WRITING CHIRP ==  %v, AND THIS IS ERROR == %v", databaseStructure.Chirps[0], err)
+
 	srv := &http.Server{
 		Addr:    ":" + port,
 		Handler: mux,
