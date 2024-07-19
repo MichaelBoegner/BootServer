@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/michaelboegner/bootserver/database"
+	"github.com/michaelboegner/bootserver/internal/database"
 )
 
 type apiConfig struct {
@@ -30,7 +30,7 @@ func main() {
 
 	mux.HandleFunc("POST /api/chirps", apiCfg.handlerChirps)
 
-	db, err := database.NewDB("database/database.json")
+	db, err := database.NewDB("internal/database/database.json")
 	fmt.Printf("\n\nDATABASE FUNCTION NEWDB ==  %v, AND THIS IS ERROR == %v", db, err)
 
 	databaseStructure, err := db.LoadDB()

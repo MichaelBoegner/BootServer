@@ -27,7 +27,7 @@ func NewDB(path string) (*DB, error) {
 	db.mux.Lock()
 	defer db.mux.Unlock()
 
-	data, err := os.ReadFile("database/database.json")
+	data, err := os.ReadFile(db.path)
 	fmt.Printf("THIS IS ERR == %v, THIS IS DATA == %v", err, data)
 
 	databaseStructure := DBStructure{
@@ -46,7 +46,7 @@ func NewDB(path string) (*DB, error) {
 		if err != nil {
 			return nil, err
 		}
-		os.Remove("database/database.json")
+		os.Remove(db.path)
 		err = os.WriteFile(db.path, []byte(marshaledData), 0666)
 		return db, err
 	}
