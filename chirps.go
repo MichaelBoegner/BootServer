@@ -52,13 +52,18 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 		}
 		fmt.Printf("\n\nDATABASE LOADED == %v", cfg.db.DatabaseStructure)
 
-		chirp, err := cfg.db.CreateChirp(payload.Body)
+		_, err := cfg.db.CreateChirp(payload.Body)
+
+		payload.Id = len(cfg.db.DatabaseStructure.Chirps) - 1
+
+		fmt.Printf("\n\npayload== %v", payload)
+
 		if err != nil {
 			log.Printf("Chirp not created by CreateChirp(): %v", err)
 		}
-		fmt.Printf("\n\nCHIRP CREATED == %v", chirp)
 
 		respondWithJSON(w, 200, payload)
+
 	} else {
 		respondWithError(w, 400, "Body must be 140 characters or less")
 	}
