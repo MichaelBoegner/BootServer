@@ -2,9 +2,9 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"strings"
 )
 
@@ -20,52 +20,58 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 	type acceptedVals struct {
 		Body string `json:"body"`
 	}
+	var err error
 
-	decoder := json.NewDecoder(r.Body)
-	params := acceptedVals{}
-	err := decoder.Decode(&params)
+	cfg.db.DatabaseStructure, err = cfg.db.LoadDB()
 	if err != nil {
-		log.Printf("Error decoding parameters: %s", err)
-		w.WriteHeader(500)
-		return
+		log.Printf("Error loading database: %s", err)
 	}
 
-	if len(params.Body) <= 140 {
-		splitBody := strings.Split(params.Body, " ")
+	switch r.Method {
+	case http.MethodPost:
+		decoder := json.NewDecoder(r.Body)
+		params := acceptedVals{}
+		err := decoder.Decode(&params)
+		if err != nil {
+			log.Printf("Error decoding parameters: %s", err)
+			w.WriteHeader(500)
+			return
+		}
 
-		for i, word := range splitBody {
-			word = strings.ToLower(word)
-			if word == "kerfuffle" || word == "sharbert" || word == "fornax" {
-				splitBody[i] = "****"
+		if len(params.Body) <= 140 {
+			splitBody := strings.Split(params.Body, " ")
+
+			for i, word := range splitBody {
+				word = strings.ToLower(word)
+				if word == "kerfuffle" || word == "sharbert" || word == "fornax" {
+					splitBody[i] = "****"
+				}
 			}
-		}
-		joinedBody := strings.Join(splitBody, " ")
+			joinedBody := strings.Join(splitBody, " ")
 
-		payload := returnVals{
-			Body: joinedBody,
-		}
+			payload := &returnVals{
+				Body: joinedBody,
+			}
 
-		cfg.db.DatabaseStructure, err = cfg.db.LoadDB()
+			_, err := cfg.db.CreateChirp(payload.Body)
+			if err != nil {
+				log.Printf("Chirp not created by CreateChirp(): %v", err)
+			}
 
-		if err != nil {
-			log.Printf("Error loading database: %s", err)
-		}
-		fmt.Printf("\n\nDATABASE LOADED == %v", cfg.db.DatabaseStructure)
+			payload.Id = len(cfg.db.DatabaseStructure.Chirps)
 
-		_, err := cfg.db.CreateChirp(payload.Body)
-
-		payload.Id = len(cfg.db.DatabaseStructure.Chirps) - 1
-
-		fmt.Printf("\n\npayload== %v", payload)
-
-		if err != nil {
-			log.Printf("Chirp not created by CreateChirp(): %v", err)
+			respondWithJSON(w, 201, payload)
+		} else {
+			respondWithError(w, 400, "Body must be 140 characters or less")
 		}
 
+	case http.MethodGet:
+		var payload []returnVals
+		for k, v := range cfg.db.DatabaseStructure.Chirps {
+			payload = append(payload, returnVals{Id: k, Body: v.Body})
+		}
+		sort.SliceStable(payload, func(i, j int) bool { return payload[i].Id < payload[j].Id })
 		respondWithJSON(w, 200, payload)
-
-	} else {
-		respondWithError(w, 400, "Body must be 140 characters or less")
 	}
 }
 
@@ -78,7 +84,6 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	w.Write(data)
 }
