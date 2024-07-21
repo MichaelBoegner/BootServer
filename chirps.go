@@ -6,9 +6,6 @@ import (
 	"log"
 	"net/http"
 	"strings"
-
-	"github.com/michaelboegner/bootserver/internal/database"
-	"k8s.io/kube-openapi/pkg/validation/errors"
 )
 
 type returnVals struct {
@@ -17,13 +14,7 @@ type returnVals struct {
 	Body  string `json:"body,omitempty"`
 }
 
-func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request, db *database.DB) {
-	database, err := db.LoadDB()
-	if err != nil {
-		errors.Error("Database not loading in handlerChirps")
-	}
-
-	fmt.Printf("\n\nTHIS IS DATABASE == %v", database)
+func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 
 	type acceptedVals struct {
@@ -53,6 +44,19 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request, db *
 		payload := returnVals{
 			Body: joinedBody,
 		}
+
+		cfg.db.DatabaseStructure, err = cfg.db.LoadDB()
+
+		if err != nil {
+			log.Printf("Error loading database: %s", err)
+		}
+		fmt.Printf("\n\nDATABASE LOADED == %v", cfg.db.DatabaseStructure)
+
+		chirp, err := cfg.db.CreateChirp(payload.Body)
+		if err != nil {
+			log.Printf("Chirp not created by CreateChirp(): %v", err)
+		}
+		fmt.Printf("\n\nCHIRP CREATED == %v", chirp)
 
 		respondWithJSON(w, 200, payload)
 	} else {

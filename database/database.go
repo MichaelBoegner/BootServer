@@ -9,7 +9,7 @@ import (
 type DB struct {
 	path              string
 	mux               *sync.RWMutex
-	databaseStructure *DBStructure
+	DatabaseStructure *DBStructure
 }
 
 type Chirp struct {
@@ -21,9 +21,16 @@ type DBStructure struct {
 }
 
 func NewDB(path string) (*DB, error) {
+	chirpMap := make(map[int]Chirp)
+
+	databaseStruct := &DBStructure{
+		Chirps: chirpMap,
+	}
+
 	db := &DB{
-		path: path,
-		mux:  &sync.RWMutex{},
+		path:              path,
+		mux:               &sync.RWMutex{},
+		DatabaseStructure: databaseStruct,
 	}
 
 	db.mux.Lock()
@@ -31,8 +38,8 @@ func NewDB(path string) (*DB, error) {
 
 	data, err := os.ReadFile(db.path)
 	if err != nil {
-		db.databaseStructure = &DBStructure{Chirps: make(map[int]Chirp)}
-		marshaledData, err := json.Marshal(db.databaseStructure)
+		db.DatabaseStructure = &DBStructure{Chirps: make(map[int]Chirp)}
+		marshaledData, err := json.Marshal(db.DatabaseStructure)
 		if err != nil {
 			return nil, err
 		}
@@ -40,35 +47,12 @@ func NewDB(path string) (*DB, error) {
 		return db, err
 	}
 
-	db.databaseStructure = &DBStructure{}
-	err = json.Unmarshal(data, db.databaseStructure)
+	err = json.Unmarshal(data, db.DatabaseStructure)
 	if err != nil {
 		return nil, err
 	}
 
 	return db, nil
-}
-
-func (db *DB) CreateChirp(body string) (Chirp, error) {
-	db.mux.Lock()
-	defer db.mux.Unlock()
-
-	chirp := Chirp{Body: body}
-
-	nextID := len(db.databaseStructure.Chirps) + 1
-	db.databaseStructure.Chirps[nextID] = chirp
-
-	marshaledChirp, err := json.Marshal(db.databaseStructure)
-	if err != nil {
-		return chirp, err
-	}
-
-	err = os.WriteFile(db.path, marshaledChirp, 0666)
-	if err != nil {
-		return chirp, err
-	}
-
-	return chirp, nil
 }
 
 func (db *DB) LoadDB() (*DBStructure, error) {
@@ -80,10 +64,32 @@ func (db *DB) LoadDB() (*DBStructure, error) {
 		return nil, err
 	}
 
-	err = json.Unmarshal(data, db.databaseStructure)
+	err = json.Unmarshal(data, db.DatabaseStructure)
 	if err != nil {
 		return nil, err
 	}
 
-	return db.databaseStructure, nil
+	return db.DatabaseStructure, nil
+}
+
+func (db *DB) CreateChirp(body string) (Chirp, error) {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
+	chirp := Chirp{Body: body}
+
+	nextID := len(db.DatabaseStructure.Chirps) + 1
+	db.DatabaseStructure.Chirps[nextID] = chirp
+
+	marshaledChirp, err := json.Marshal(db.DatabaseStructure)
+	if err != nil {
+		return chirp, err
+	}
+
+	err = os.WriteFile(db.path, marshaledChirp, 0666)
+	if err != nil {
+		return chirp, err
+	}
+
+	return chirp, nil
 }

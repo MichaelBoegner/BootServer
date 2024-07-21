@@ -1,23 +1,29 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
-	"github.com/michaelboegner/internal/database"
+	"github.com/michaelboegner/bootserver/database"
 )
 
 type apiConfig struct {
 	fileserverHits int
+	db             *database.DB
 }
 
 func main() {
+	db, err := database.NewDB("database/database.json")
+	if err != nil {
+		log.Fatalf("Failed to initialize database due to following errror: %s", err)
+	}
+
 	const filepathRoot = "."
 	const port = "8080"
 
 	apiCfg := apiConfig{
 		fileserverHits: 0,
+		db:             db,
 	}
 
 	mux := http.NewServeMux()
@@ -29,18 +35,6 @@ func main() {
 	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
 
 	mux.HandleFunc("POST /api/chirps", apiCfg.handlerChirps)
-
-	db, err := database.NewDB("internal/database/database.json")
-	fmt.Printf("\n\n1. DATABASE FUNCTION NEWDB ==  %v, AND THIS IS ERROR == %v", db, err)
-
-	// databaseStructure, err := db.LoadDB()
-	// fmt.Printf("\n\n2. DATABASE STRUCTURE ==  %v, AND THIS IS ERROR == %v", databaseStructure, err)
-
-	// chirp, err := db.CreateChirp("This is a chirp")
-	// fmt.Printf("\n\n3. CHIRP ==  %v, AND THIS IS ERROR == %v", chirp, err)
-
-	// databaseStructure, err = db.LoadDB()
-	// fmt.Printf("\n\n4. DATABASE STRUCTURE.CHIRPS AFTER WRITING CHIRP ==  %v, AND THIS IS ERROR == %v", databaseStructure, err)
 
 	srv := &http.Server{
 		Addr:    ":" + port,
