@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/michaelboegner/bootserver/internal/database"
+	"github.com/michaelboegner/internal/database"
 )
 
 type apiConfig struct {
@@ -31,16 +31,16 @@ func main() {
 	mux.HandleFunc("POST /api/chirps", apiCfg.handlerChirps)
 
 	db, err := database.NewDB("internal/database/database.json")
-	fmt.Printf("\n\nDATABASE FUNCTION NEWDB ==  %v, AND THIS IS ERROR == %v", db, err)
+	fmt.Printf("\n\n1. DATABASE FUNCTION NEWDB ==  %v, AND THIS IS ERROR == %v", db, err)
 
-	databaseStructure, err := db.LoadDB()
-	fmt.Printf("\n\nDATABASE STRUCTURE ==  %v, AND THIS IS ERROR == %v", databaseStructure, err)
+	// databaseStructure, err := db.LoadDB()
+	// fmt.Printf("\n\n2. DATABASE STRUCTURE ==  %v, AND THIS IS ERROR == %v", databaseStructure, err)
 
-	chirp, err := db.CreateChirp("This is a chirp")
-	fmt.Printf("\n\nCHIRP ==  %v, AND THIS IS ERROR == %v", chirp, err)
+	// chirp, err := db.CreateChirp("This is a chirp")
+	// fmt.Printf("\n\n3. CHIRP ==  %v, AND THIS IS ERROR == %v", chirp, err)
 
-	databaseStructure, err = db.LoadDB()
-	fmt.Printf("\n\nDATABASE STRUCTURE.CHIRPS AFTER WRITING CHIRP ==  %v, AND THIS IS ERROR == %v", databaseStructure.Chirps[0], err)
+	// databaseStructure, err = db.LoadDB()
+	// fmt.Printf("\n\n4. DATABASE STRUCTURE.CHIRPS AFTER WRITING CHIRP ==  %v, AND THIS IS ERROR == %v", databaseStructure, err)
 
 	srv := &http.Server{
 		Addr:    ":" + port,

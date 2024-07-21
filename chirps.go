@@ -2,9 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/michaelboegner/bootserver/internal/database"
+	"k8s.io/kube-openapi/pkg/validation/errors"
 )
 
 type returnVals struct {
@@ -13,7 +17,13 @@ type returnVals struct {
 	Body  string `json:"body,omitempty"`
 }
 
-func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request, db *database.DB) {
+	database, err := db.LoadDB()
+	if err != nil {
+		errors.Error("Database not loading in handlerChirps")
+	}
+
+	fmt.Printf("\n\nTHIS IS DATABASE == %v", database)
 	w.Header().Add("Content-Type", "application/json")
 
 	type acceptedVals struct {
@@ -43,6 +53,7 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 		payload := returnVals{
 			Body: joinedBody,
 		}
+
 		respondWithJSON(w, 200, payload)
 	} else {
 		respondWithError(w, 400, "Body must be 140 characters or less")
