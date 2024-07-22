@@ -2,6 +2,7 @@ package database
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"sync"
 )
@@ -91,5 +92,17 @@ func (db *DB) CreateChirp(body string) (Chirp, error) {
 		return chirp, err
 	}
 
+	return chirp, nil
+}
+
+func (db *DB) GetChirp(id int) (Chirp, error) {
+	db.mux.RLock()
+	defer db.mux.RUnlock()
+
+	chirp := db.DatabaseStructure.Chirps[id]
+	if chirp.Body == "" {
+		err := errors.New("Chirp not found")
+		return chirp, err
+	}
 	return chirp, nil
 }

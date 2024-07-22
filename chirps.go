@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -20,8 +22,8 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 	type acceptedVals struct {
 		Body string `json:"body"`
 	}
-	var err error
 
+	var err error
 	cfg.db.DatabaseStructure, err = cfg.db.LoadDB()
 	if err != nil {
 		log.Printf("Error loading database: %s", err)
@@ -66,12 +68,31 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 		}
 
 	case http.MethodGet:
-		var payload []returnVals
-		for k, v := range cfg.db.DatabaseStructure.Chirps {
-			payload = append(payload, returnVals{Id: k, Body: v.Body})
+		path := r.URL.Path
+		fmt.Printf("PATH: %s\n", path)
+		split_path := strings.Split(path, "/")
+		fmt.Printf("SPLIT PATH: %s\n", split_path)
+
+		if len(split_path) == 4 && split_path[3] != "" {
+			dynamic_id, _ := strconv.Atoi(split_path[3])
+			chirp, err := cfg.db.GetChirp(dynamic_id)
+			if err != nil {
+				log.Printf("Error getting chirp by ID: %s", err)
+				respondWithError(w, 404, "Invalid ID")
+				return
+			}
+			payload := returnVals{Id: dynamic_id, Body: chirp.Body}
+			respondWithJSON(w, 200, payload)
+		} else if len(split_path) == 4 && split_path[3] == "" {
+			var payload []returnVals
+			for k, v := range cfg.db.DatabaseStructure.Chirps {
+				payload = append(payload, returnVals{Id: k, Body: v.Body})
+			}
+			sort.SliceStable(payload, func(i, j int) bool { return payload[i].Id < payload[j].Id })
+			respondWithJSON(w, 200, payload)
+		} else {
+			respondWithError(w, 400, "Invalid path")
 		}
-		sort.SliceStable(payload, func(i, j int) bool { return payload[i].Id < payload[j].Id })
-		respondWithJSON(w, 200, payload)
 	}
 }
 
@@ -83,7 +104,7 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 		w.WriteHeader(500)
 		return
 	}
-
+	log.Printf("Responding with status: %d", code)
 	w.WriteHeader(code)
 	w.Write(data)
 }

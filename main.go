@@ -34,7 +34,7 @@ func main() {
 
 	mux.HandleFunc("GET /api/healthz", handlerReadiness)
 	mux.HandleFunc("GET /api/reset", apiCfg.handlerReset)
-	mux.HandleFunc("/api/chirps", apiCfg.handlerChirps)
+	mux.HandleFunc("/api/chirps/", apiCfg.handlerChirps)
 
 	srv := &http.Server{
 		Addr:    ":" + port,
