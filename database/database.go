@@ -3,6 +3,7 @@ package database
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"sync"
 )
@@ -18,7 +19,6 @@ type Chirp struct {
 }
 
 type User struct {
-	ID    int    `json:"id"`
 	Email string `json:"email"`
 }
 
@@ -29,9 +29,11 @@ type DBStructure struct {
 
 func NewDB(path string) (*DB, error) {
 	chirpMap := make(map[int]Chirp)
+	userMap := make(map[int]User)
 
 	databaseStruct := &DBStructure{
 		Chirps: chirpMap,
+		Users:  userMap,
 	}
 
 	db := &DB{
@@ -45,7 +47,11 @@ func NewDB(path string) (*DB, error) {
 
 	data, err := os.ReadFile(db.path)
 	if err != nil {
-		db.DatabaseStructure = &DBStructure{Chirps: make(map[int]Chirp)}
+		db.DatabaseStructure = &DBStructure{
+			Chirps: make(map[int]Chirp),
+			Users:  make(map[int]User),
+		}
+
 		marshaledData, err := json.Marshal(db.DatabaseStructure)
 		if err != nil {
 			return nil, err
@@ -83,17 +89,19 @@ func (db *DB) CreateChirp(body string) (Chirp, error) {
 	db.mux.Lock()
 	defer db.mux.Unlock()
 
-	chirp := Chirp{Body: body}
+	chirp := Chirp{
+		Body: body,
+	}
 
 	nextID := len(db.DatabaseStructure.Chirps) + 1
 	db.DatabaseStructure.Chirps[nextID] = chirp
 
-	marshaledChirp, err := json.Marshal(db.DatabaseStructure)
+	marshaledData, err := json.Marshal(db.DatabaseStructure)
 	if err != nil {
 		return chirp, err
 	}
 
-	err = os.WriteFile(db.path, marshaledChirp, 0666)
+	err = os.WriteFile(db.path, marshaledData, 0666)
 	if err != nil {
 		return chirp, err
 	}
@@ -111,4 +119,29 @@ func (db *DB) GetChirp(id int) (Chirp, error) {
 		return chirp, err
 	}
 	return chirp, nil
+}
+
+func (db *DB) CreateUser(email string) (User, error) {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
+	user := User{
+		Email: email,
+	}
+
+	nextID := len(db.DatabaseStructure.Users) + 1
+	fmt.Println("ASSIGNMENT TO ENTRY TO NIL MAP? ")
+	db.DatabaseStructure.Users[nextID] = user
+
+	marshaledData, err := json.Marshal(db.DatabaseStructure)
+	if err != nil {
+		return user, err
+	}
+	fmt.Printf("TRYING TO WRITE USER TO FILE USING = %v WRITING TO db.DATABASESTRUCTURE.USERS == %v", marshaledData, db.DatabaseStructure.Users)
+	err = os.WriteFile(db.path, marshaledData, 0666)
+	if err != nil {
+		return user, err
+	}
+
+	return user, nil
 }

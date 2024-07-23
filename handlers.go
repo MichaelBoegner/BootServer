@@ -14,10 +14,12 @@ type returnVals struct {
 	Error string `json:"error,omitempty"`
 	Id    int    `json:"id,omitempty"`
 	Body  string `json:"body,omitempty"`
+	Email string `json:"email,omitempty"`
 }
 
 type acceptedVals struct {
-	Body string `json:"body"`
+	Body  string `json:"body"`
+	Email string `json:"email"`
 }
 
 func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
@@ -69,15 +71,12 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 
 	case http.MethodGet:
 		path := r.URL.Path
-		fmt.Printf("PATH: %s\n", path)
 		split_path := strings.Split(path, "/")
-		fmt.Printf("SPLIT PATH: %s\n", split_path)
 
 		if len(split_path) == 4 && split_path[3] != "" {
 			dynamic_id, _ := strconv.Atoi(split_path[3])
 			chirp, err := cfg.db.GetChirp(dynamic_id)
 			if err != nil {
-				log.Printf("Error getting chirp by ID: %s", err)
 				respondWithError(w, 404, "Invalid ID")
 				return
 			}
@@ -97,6 +96,7 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("HANDLER FIRING\n")
 	w.Header().Add("Content-Type", "application/json")
 	decoder := json.NewDecoder(r.Body)
 	params := acceptedVals{}
@@ -106,10 +106,19 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
 		return
 	}
-	payload := &returnVals{
-		Body: params.Body,
+	fmt.Printf("PARAMS == %v", params)
+
+	user, err := cfg.db.CreateUser(params.Email)
+	if err != nil {
+		log.Printf("Email parameter not valid: %s", err)
 	}
-	respondWithJSON(w, 200, payload)
+
+	payload := &returnVals{
+		Email: user.Email,
+	}
+	payload.Id = len(cfg.db.DatabaseStructure.Users)
+
+	respondWithJSON(w, 201, payload)
 }
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
