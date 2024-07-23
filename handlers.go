@@ -98,7 +98,18 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 
 func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
-
+	decoder := json.NewDecoder(r.Body)
+	params := acceptedVals{}
+	err := decoder.Decode(&params)
+	if err != nil {
+		log.Printf("Error decoding parameters: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+	payload := &returnVals{
+		Body: params.Body,
+	}
+	respondWithJSON(w, 200, payload)
 }
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
