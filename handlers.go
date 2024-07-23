@@ -16,12 +16,12 @@ type returnVals struct {
 	Body  string `json:"body,omitempty"`
 }
 
+type acceptedVals struct {
+	Body string `json:"body"`
+}
+
 func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
-
-	type acceptedVals struct {
-		Body string `json:"body"`
-	}
 
 	var err error
 	cfg.db.DatabaseStructure, err = cfg.db.LoadDB()
@@ -94,6 +94,11 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 			respondWithError(w, 400, "Invalid path")
 		}
 	}
+}
+
+func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "application/json")
+
 }
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
