@@ -3,9 +3,10 @@ package database
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"sync"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type DB struct {
@@ -19,7 +20,8 @@ type Chirp struct {
 }
 
 type User struct {
-	Email string `json:"email"`
+	Password []byte `json:"password"`
+	Email    string `json:"email"`
 }
 
 type DBStructure struct {
@@ -121,7 +123,7 @@ func (db *DB) GetChirp(id int) (Chirp, error) {
 	return chirp, nil
 }
 
-func (db *DB) CreateUser(email string) (User, error) {
+func (db *DB) CreateUser(email, password string) (User, error) {
 	db.mux.Lock()
 	defer db.mux.Unlock()
 
@@ -129,15 +131,20 @@ func (db *DB) CreateUser(email string) (User, error) {
 		Email: email,
 	}
 
+	var err error
+	user.Password, err = bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
+	if err != nil {
+		return user, err
+	}
+
 	nextID := len(db.DatabaseStructure.Users) + 1
-	fmt.Println("ASSIGNMENT TO ENTRY TO NIL MAP? ")
 	db.DatabaseStructure.Users[nextID] = user
 
 	marshaledData, err := json.Marshal(db.DatabaseStructure)
 	if err != nil {
 		return user, err
 	}
-	fmt.Printf("TRYING TO WRITE USER TO FILE USING = %v WRITING TO db.DATABASESTRUCTURE.USERS == %v", marshaledData, db.DatabaseStructure.Users)
+
 	err = os.WriteFile(db.path, marshaledData, 0666)
 	if err != nil {
 		return user, err

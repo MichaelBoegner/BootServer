@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"sort"
@@ -18,8 +17,9 @@ type returnVals struct {
 }
 
 type acceptedVals struct {
-	Body  string `json:"body"`
-	Email string `json:"email"`
+	Body     string `json:"body"`
+	Password string `json:"password"`
+	Email    string `json:"email"`
 }
 
 func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
@@ -96,7 +96,6 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("HANDLER FIRING\n")
 	w.Header().Add("Content-Type", "application/json")
 	decoder := json.NewDecoder(r.Body)
 	params := acceptedVals{}
@@ -106,9 +105,8 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
 		return
 	}
-	fmt.Printf("PARAMS == %v", params)
 
-	user, err := cfg.db.CreateUser(params.Email)
+	user, err := cfg.db.CreateUser(params.Email, params.Password)
 	if err != nil {
 		log.Printf("Email parameter not valid: %s", err)
 	}
