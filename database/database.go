@@ -152,3 +152,22 @@ func (db *DB) CreateUser(email, password string) (User, error) {
 
 	return user, nil
 }
+
+func (db *DB) GetUser(email, password string) (User, int, error) {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
+	var User User
+	var id int
+	for i, user := range db.DatabaseStructure.Users {
+		if user.Email == email {
+			err := bcrypt.CompareHashAndPassword(user.Password, []byte(password))
+			if err != nil {
+				return User, 0, err
+			}
+			User = user
+			id = i
+		}
+	}
+	return User, id, nil
+}

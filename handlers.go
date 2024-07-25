@@ -119,6 +119,30 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, 201, payload)
 }
 
+func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "application/json")
+	decoder := json.NewDecoder(r.Body)
+	params := acceptedVals{}
+	err := decoder.Decode(&params)
+	if err != nil {
+		log.Printf("Error decoding parameters: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	user, id, err := cfg.db.GetUser(params.Email, params.Password)
+	if err != nil {
+		respondWithError(w, 401, "Unauthorized")
+	}
+
+	payload := &returnVals{
+		Id:    id,
+		Email: user.Email,
+	}
+
+	respondWithJSON(w, 200, payload)
+}
+
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	data, err := json.Marshal(payload)
 
