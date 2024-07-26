@@ -2,14 +2,11 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/golang-jwt/jwt"
 )
 
 type returnVals struct {
@@ -20,9 +17,10 @@ type returnVals struct {
 }
 
 type acceptedVals struct {
-	Body     string `json:"body"`
-	Password string `json:"password"`
-	Email    string `json:"email"`
+	Body             string `json:"body"`
+	Password         string `json:"password"`
+	Email            string `json:"email"`
+	ExpiresInSeconds int    `json:"expires_in_seconds"`
 }
 
 func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
@@ -125,29 +123,17 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 	jwtSecret := cfg.jwt
-	var (
-		key []byte
-		t   *jwt.Token
-	)
-	// now := time.Now()
-	key = []byte(jwtSecret)
-	t = jwt.New(jwt.SigningMethodHS256)
-	s, err := t.SignedString(key)
-	if err != nil {
-		log.Fatalf("Bad SignedString: %s - key: %v", err, key)
-	}
-	fmt.Printf("SIGNED STRING S == %s", s)
 
 	decoder := json.NewDecoder(r.Body)
 	params := acceptedVals{}
-	err = decoder.Decode(&params)
+	err := decoder.Decode(&params)
 	if err != nil {
 		log.Printf("Error decoding parameters: %s", err)
 		w.WriteHeader(500)
 		return
 	}
 
-	user, id, err := cfg.db.GetUser(params.Email, params.Password)
+	user, id, err := cfg.db.GetUser(params.Email, params.Password, jwtSecret, params.ExpiresInSeconds)
 	if err != nil {
 		respondWithError(w, 401, "Unauthorized")
 	}

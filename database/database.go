@@ -3,9 +3,13 @@ package database
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"os"
+	"strconv"
 	"sync"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -154,9 +158,27 @@ func (db *DB) CreateUser(email, password string) (User, error) {
 	return user, nil
 }
 
-func (db *DB) GetUser(email, password string) (User, int, error) {
+func (db *DB) GetUser(email, password, jwtSecret string, expires int) (User, int, error) {
 	db.mux.Lock()
 	defer db.mux.Unlock()
+	var (
+		key []byte
+		t   *jwt.Token
+	)
+	now := time.Now()
+	expiresAt := time.Now().Add(time.Duration(expires))
+	key = []byte(jwtSecret)
+	claims := jwt.RegisteredClaims{
+		Issuer:    "chirpy",
+		IssuedAt:  jwt.NewNumericDate(now),
+		ExpiresAt: jwt.NewNumericDate(expiresAt),
+		Subject:   strconv.Itoa(123),
+	}
+	t = jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	_, err := t.SignedString(key)
+	if err != nil {
+		log.Fatalf("Bad SignedString: %s", err)
+	}
 
 	var User User
 	var id int
