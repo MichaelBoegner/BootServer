@@ -2,11 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/golang-jwt/jwt"
 )
 
 type returnVals struct {
@@ -121,9 +124,23 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
+	jwtSecret := cfg.jwt
+	var (
+		key []byte
+		t   *jwt.Token
+	)
+	// now := time.Now()
+	key = []byte(jwtSecret)
+	t = jwt.New(jwt.SigningMethodHS256)
+	s, err := t.SignedString(key)
+	if err != nil {
+		log.Fatalf("Bad SignedString: %s - key: %v", err, key)
+	}
+	fmt.Printf("SIGNED STRING S == %s", s)
+
 	decoder := json.NewDecoder(r.Body)
 	params := acceptedVals{}
-	err := decoder.Decode(&params)
+	err = decoder.Decode(&params)
 	if err != nil {
 		log.Printf("Error decoding parameters: %s", err)
 		w.WriteHeader(500)

@@ -20,8 +20,9 @@ type Chirp struct {
 }
 
 type User struct {
-	Password []byte `json:"password"`
-	Email    string `json:"email"`
+	Password         []byte `json:"password"`
+	Email            string `json:"email"`
+	ExpiresInSeconds int    `json:"expires_in_seconds"`
 }
 
 type DBStructure struct {

@@ -3,16 +3,22 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
+	"github.com/joho/godotenv"
 	"github.com/michaelboegner/bootserver/database"
 )
 
 type apiConfig struct {
 	fileserverHits int
 	db             *database.DB
+	jwt            string
 }
 
 func main() {
+	godotenv.Load()
+	jwtSecret := os.Getenv("JWT_SECRET")
+
 	db, err := database.NewDB("database/database.json")
 	if err != nil {
 		log.Fatalf("Failed to initialize database due to following errror: %s", err)
@@ -24,6 +30,7 @@ func main() {
 	apiCfg := apiConfig{
 		fileserverHits: 0,
 		db:             db,
+		jwt:            jwtSecret,
 	}
 
 	mux := http.NewServeMux()
