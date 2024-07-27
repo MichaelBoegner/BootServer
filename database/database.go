@@ -158,7 +158,7 @@ func (db *DB) CreateUser(email, password string) (User, error) {
 	return user, nil
 }
 
-func (db *DB) GetUser(email, password, jwtSecret string, expires int) (User, int, error) {
+func (db *DB) GetUser(email, password, jwtSecret string, expires int) (User, int, string, error) {
 	db.mux.Lock()
 	defer db.mux.Unlock()
 	var (
@@ -175,7 +175,7 @@ func (db *DB) GetUser(email, password, jwtSecret string, expires int) (User, int
 		Subject:   strconv.Itoa(123),
 	}
 	t = jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	_, err := t.SignedString(key)
+	s, err := t.SignedString(key)
 	if err != nil {
 		log.Fatalf("Bad SignedString: %s", err)
 	}
@@ -186,11 +186,12 @@ func (db *DB) GetUser(email, password, jwtSecret string, expires int) (User, int
 		if user.Email == email {
 			err := bcrypt.CompareHashAndPassword(user.Password, []byte(password))
 			if err != nil {
-				return User, 0, err
+				return User, 0, "", err
 			}
 			User = user
 			id = i
 		}
 	}
-	return User, id, nil
+
+	return User, id, s, nil
 }

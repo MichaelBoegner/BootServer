@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"sort"
@@ -14,6 +15,7 @@ type returnVals struct {
 	Id    int    `json:"id,omitempty"`
 	Body  string `json:"body,omitempty"`
 	Email string `json:"email,omitempty"`
+	Token string `json:"token,omitempty"`
 }
 
 type acceptedVals struct {
@@ -133,7 +135,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, id, err := cfg.db.GetUser(params.Email, params.Password, jwtSecret, params.ExpiresInSeconds)
+	user, id, token, err := cfg.db.GetUser(params.Email, params.Password, jwtSecret, params.ExpiresInSeconds)
 	if err != nil {
 		respondWithError(w, 401, "Unauthorized")
 	}
@@ -141,8 +143,9 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	payload := &returnVals{
 		Id:    id,
 		Email: user.Email,
+		Token: token,
 	}
-
+	fmt.Printf("PAYLOAD == %v", payload)
 	respondWithJSON(w, 200, payload)
 }
 
