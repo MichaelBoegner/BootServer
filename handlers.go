@@ -148,7 +148,7 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 		token, err := jwt.ParseWithClaims(tokenString, &MyCustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 			return []byte(jwtSecret), nil
 		})
-		fmt.Println("JUST AFTER PARSEWITHCLAIMS\n\n")
+
 		if err != nil {
 			respondWithError(w, 401, "Unauthorized")
 			return
@@ -178,11 +178,11 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 		}
 
 		payload := &returnVals{
-			Password: user.Password,
-			Email:    user.Email,
+			Id:    id,
+			Email: user.Email,
 		}
 
-		respondWithJSON(w, http.StatusAccepted, payload)
+		respondWithJSON(w, 200, payload)
 
 	}
 

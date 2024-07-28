@@ -183,6 +183,9 @@ func (db *DB) GetUser(email, password, jwtSecret string, expires int) (User, int
 	}
 
 	now := time.Now()
+	if expires == 0 {
+		expires = 10000
+	}
 	expiresAt := time.Now().Add(time.Duration(expires) * time.Second)
 	key = []byte(jwtSecret)
 	claims := jwt.RegisteredClaims{
@@ -208,6 +211,16 @@ func (db *DB) UpdateUser(password, email string, id int) (User, error) {
 		Email:    email,
 	}
 	db.DatabaseStructure.Users[id] = user
+
+	marshaledData, err := json.Marshal(db.DatabaseStructure)
+	if err != nil {
+		return user, err
+	}
+
+	err = os.WriteFile(db.path, marshaledData, 0666)
+	if err != nil {
+		return user, err
+	}
 
 	return user, nil
 
