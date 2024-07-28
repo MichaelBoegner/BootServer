@@ -117,6 +117,8 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 		user, err := cfg.db.CreateUser(params.Email, params.Password)
 		if err != nil {
 			log.Printf("Email parameter not valid: %s", err)
+			respondWithError(w, 400, "Bad Request")
+			return
 		}
 
 		payload := &returnVals{
@@ -149,12 +151,17 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("JUST AFTER PARSEWITHCLAIMS\n\n")
 		if err != nil {
 			respondWithError(w, 401, "Unauthorized")
+			return
 		}
 
 		if token == nil {
 			log.Fatal("Token parsing resulted in nil token")
 		}
 		idString, err := token.Claims.GetSubject()
+		if err != nil {
+			respondWithError(w, 500, "Internal Server Error")
+			return
+		}
 
 		fmt.Printf("\nID STRING == %v", idString)
 		id, err := strconv.Atoi(idString)
@@ -165,7 +172,9 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 
 		user, err := cfg.db.UpdateUser(params.Password, params.Email, id)
 		if err != nil {
-			log.Printf("Email parameter not valid: %s", err)
+			log.Printf("Error decoding parameters: %s", err)
+			respondWithError(w, 500, "Internal Server Error")
+			return
 		}
 
 		payload := &returnVals{
@@ -173,7 +182,7 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 			Email:    user.Email,
 		}
 
-		respondWithJSON(w, 200, payload)
+		respondWithJSON(w, http.StatusAccepted, payload)
 
 	}
 
@@ -208,10 +217,9 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	data, err := json.Marshal(payload)
-
 	if err != nil {
 		log.Printf("Error marshalling JSON: %s", err)
-		w.WriteHeader(500)
+		respondWithError(w, 500, "Internal Server Error")
 		return
 	}
 	log.Printf("Responding with status: %d", code)
