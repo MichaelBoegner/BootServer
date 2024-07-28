@@ -22,7 +22,7 @@ type acceptedVals struct {
 	Body             string `json:"body"`
 	Password         string `json:"password"`
 	Email            string `json:"email"`
-	ExpiresInSeconds int    `json:"expires_in_seconds"`
+	ExpiresInSeconds int    `json:"expires_in_seconds,omitempty"`
 }
 
 func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
@@ -108,18 +108,30 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
 		return
 	}
+	switch r.Method {
+	case http.MethodPost:
+		user, err := cfg.db.CreateUser(params.Email, params.Password)
+		if err != nil {
+			log.Printf("Email parameter not valid: %s", err)
+		}
 
-	user, err := cfg.db.CreateUser(params.Email, params.Password)
-	if err != nil {
-		log.Printf("Email parameter not valid: %s", err)
+		payload := &returnVals{
+			Email: user.Email,
+		}
+		payload.Id = len(cfg.db.DatabaseStructure.Users)
+
+		respondWithJSON(w, 201, payload)
+
+	case http.MethodPut:
+		headerAuth := r.Header.Get()
+		token := ""
+		user, err := cfg.db.UpdateUser(token)
+		if err != nil {
+			log.Printf("Email parameter not valid: %s", err)
+		}
+
 	}
 
-	payload := &returnVals{
-		Email: user.Email,
-	}
-	payload.Id = len(cfg.db.DatabaseStructure.Users)
-
-	respondWithJSON(w, 201, payload)
 }
 
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {

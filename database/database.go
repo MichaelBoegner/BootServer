@@ -162,26 +162,12 @@ func (db *DB) GetUser(email, password, jwtSecret string, expires int) (User, int
 	db.mux.Lock()
 	defer db.mux.Unlock()
 	var (
-		key []byte
-		t   *jwt.Token
+		key  []byte
+		t    *jwt.Token
+		User User
+		id   int
 	)
-	now := time.Now()
-	expiresAt := time.Now().Add(time.Duration(expires))
-	key = []byte(jwtSecret)
-	claims := jwt.RegisteredClaims{
-		Issuer:    "chirpy",
-		IssuedAt:  jwt.NewNumericDate(now),
-		ExpiresAt: jwt.NewNumericDate(expiresAt),
-		Subject:   strconv.Itoa(123),
-	}
-	t = jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	s, err := t.SignedString(key)
-	if err != nil {
-		log.Fatalf("Bad SignedString: %s", err)
-	}
 
-	var User User
-	var id int
 	for i, user := range db.DatabaseStructure.Users {
 		if user.Email == email {
 			err := bcrypt.CompareHashAndPassword(user.Password, []byte(password))
@@ -192,6 +178,32 @@ func (db *DB) GetUser(email, password, jwtSecret string, expires int) (User, int
 			id = i
 		}
 	}
+	if id == 0 {
+		return User, id, "", errors.New("Email not found")
+	}
+
+	now := time.Now()
+	expiresAt := time.Now().Add(time.Duration(expires))
+	key = []byte(jwtSecret)
+	claims := jwt.RegisteredClaims{
+		Issuer:    "chirpy",
+		IssuedAt:  jwt.NewNumericDate(now),
+		ExpiresAt: jwt.NewNumericDate(expiresAt),
+		Subject:   strconv.Itoa(id),
+	}
+	t = jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	s, err := t.SignedString(key)
+	if err != nil {
+		log.Fatalf("Bad SignedString: %s", err)
+	}
 
 	return User, id, s, nil
+}
+
+func (db *DB) UpdateUser(token string) (User, error) {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+	user := User{}
+	return user, nil
+
 }
