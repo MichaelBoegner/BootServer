@@ -3,6 +3,7 @@ package database
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -183,7 +184,8 @@ func (db *DB) GetUser(email, password, jwtSecret string, expires int) (User, int
 	}
 
 	now := time.Now()
-	expiresAt := time.Now().Add(time.Duration(expires))
+	expiresAt := time.Now().Add(time.Duration(expires) * time.Second)
+	fmt.Printf("\nEXPIRES AT === %v AND EXPIRES === %v", expiresAt, expires)
 	key = []byte(jwtSecret)
 	claims := &jwt.RegisteredClaims{
 		Issuer:    "chirpy",
