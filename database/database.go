@@ -3,7 +3,6 @@ package database
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -185,9 +184,8 @@ func (db *DB) GetUser(email, password, jwtSecret string, expires int) (User, int
 
 	now := time.Now()
 	expiresAt := time.Now().Add(time.Duration(expires) * time.Second)
-	fmt.Printf("\nEXPIRES AT === %v AND EXPIRES === %v", expiresAt, expires)
 	key = []byte(jwtSecret)
-	claims := &jwt.RegisteredClaims{
+	claims := jwt.RegisteredClaims{
 		Issuer:    "chirpy",
 		IssuedAt:  jwt.NewNumericDate(now),
 		ExpiresAt: jwt.NewNumericDate(expiresAt),
@@ -202,10 +200,15 @@ func (db *DB) GetUser(email, password, jwtSecret string, expires int) (User, int
 	return User, id, s, nil
 }
 
-func (db *DB) UpdateUser(token string) (User, error) {
+func (db *DB) UpdateUser(password, email string, id int) (User, error) {
 	db.mux.Lock()
 	defer db.mux.Unlock()
-	user := User{}
+	user := User{
+		Password: []byte(password),
+		Email:    email,
+	}
+	db.DatabaseStructure.Users[id] = user
+
 	return user, nil
 
 }

@@ -14,11 +14,12 @@ import (
 )
 
 type returnVals struct {
-	Error string `json:"error,omitempty"`
-	Id    int    `json:"id,omitempty"`
-	Body  string `json:"body,omitempty"`
-	Email string `json:"email,omitempty"`
-	Token string `json:"token,omitempty"`
+	Error    string `json:"error,omitempty"`
+	Id       int    `json:"id,omitempty"`
+	Body     string `json:"body,omitempty"`
+	Email    string `json:"email,omitempty"`
+	Token    string `json:"token,omitempty"`
+	Password []byte `json:"password,omitempty"`
 }
 
 type acceptedVals struct {
@@ -127,30 +128,52 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 
 	case http.MethodPut:
 		jwtSecret := os.Getenv("JWT_SECRET")
+		if jwtSecret == "" {
+			log.Fatal("JWT secret is not set")
+		}
 
 		tokenParts := strings.Split(r.Header.Get("Authorization"), " ")
 		if len(tokenParts) < 2 {
 			log.Fatal("Authoization header is malformed")
 		}
 		tokenString := tokenParts[1]
-		fmt.Printf("\nTOKEN STRING == %v", tokenParts)
-
+		fmt.Printf("\nTOKEN STRING == %v\n\n", tokenString)
+		fmt.Println("\n\nJUST BEFORE MYCUSTOMCLAIMS STRUCT TYPED\n\n")
 		type MyCustomClaims struct {
 			jwt.RegisteredClaims
 		}
-
+		fmt.Println("JUST BEFORE PARSEWITHCLAIMS\n\n")
 		token, err := jwt.ParseWithClaims(tokenString, &MyCustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 			return []byte(jwtSecret), nil
 		})
-		fmt.Printf("\nTOKEN CLAIMS == %v", token.Claims)
+		fmt.Println("JUST AFTER PARSEWITHCLAIMS\n\n")
 		if err != nil {
-			log.Fatalf("LOGGING FATAL ERROR: %v", err)
+			respondWithError(w, 401, "Unauthorized")
 		}
 
-		// _, err := cfg.db.UpdateUser(token)
-		// if err != nil {
-		// 	log.Printf("Email parameter not valid: %s", err)
-		// }
+		if token == nil {
+			log.Fatal("Token parsing resulted in nil token")
+		}
+		idString, err := token.Claims.GetSubject()
+
+		fmt.Printf("\nID STRING == %v", idString)
+		id, err := strconv.Atoi(idString)
+		if err != nil {
+			log.Fatalf("ID not converted from string to int: %v", err)
+		}
+		fmt.Printf("\nID INT == %v", id)
+
+		user, err := cfg.db.UpdateUser(params.Password, params.Email, id)
+		if err != nil {
+			log.Printf("Email parameter not valid: %s", err)
+		}
+
+		payload := &returnVals{
+			Password: user.Password,
+			Email:    user.Email,
+		}
+
+		respondWithJSON(w, 200, payload)
 
 	}
 
