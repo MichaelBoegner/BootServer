@@ -185,7 +185,7 @@ func (db *DB) GetUser(email, password, jwtSecret string, expires int) (User, int
 	now := time.Now()
 	expiresAt := time.Now().Add(time.Duration(expires))
 	key = []byte(jwtSecret)
-	claims := jwt.RegisteredClaims{
+	claims := &jwt.RegisteredClaims{
 		Issuer:    "chirpy",
 		IssuedAt:  jwt.NewNumericDate(now),
 		ExpiresAt: jwt.NewNumericDate(expiresAt),

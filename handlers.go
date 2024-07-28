@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type returnVals struct {
@@ -123,12 +125,27 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 		respondWithJSON(w, 201, payload)
 
 	case http.MethodPut:
-		headerAuth := r.Header.Get()
-		token := ""
-		user, err := cfg.db.UpdateUser(token)
-		if err != nil {
-			log.Printf("Email parameter not valid: %s", err)
+		tokenParts := strings.Split(r.Header.Get("Authorization"), " ")
+		if len(tokenParts) < 2 {
+			log.Fatal("Authoization header is malformed")
 		}
+		tokenString := tokenParts[1]
+		fmt.Printf("\nTOKEN STRING == %v", tokenParts)
+		type MyCustomClaims struct {
+			jwt.RegisteredClaims
+		}
+		token, err := jwt.ParseWithClaims(tokenString, &MyCustomClaims{}, func(token *jwt.Token) (interface{}, error) {
+			fmt.Printf("\n\nANON FUNC IN PARSEWITHCLAIMS")
+			return []byte("AllYourBase"), nil
+		})
+		if err != nil {
+			log.Fatalf("LOGGING FATAL ERROR: %v", err)
+		}
+		fmt.Printf("\nTOKEN CLAIMS == %v", token.Claims)
+		// _, err := cfg.db.UpdateUser(token)
+		// if err != nil {
+		// 	log.Printf("Email parameter not valid: %s", err)
+		// }
 
 	}
 
