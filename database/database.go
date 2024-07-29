@@ -148,15 +148,9 @@ func (db *DB) CreateUser(email, password string) (User, error) {
 
 	nextID := len(db.DatabaseStructure.Users) + 1
 	db.DatabaseStructure.Users[nextID] = user
-
-	marshaledData, err := json.Marshal(db.DatabaseStructure)
+	err = writeFile(db)
 	if err != nil {
-		return user, err
-	}
-
-	err = os.WriteFile(db.path, marshaledData, 0666)
-	if err != nil {
-		return user, err
+		log.Fatalf("Not writing to database: %v", err)
 	}
 
 	return user, nil
@@ -209,14 +203,9 @@ func (db *DB) GetUser(email, password, jwtSecret string, expires int) (User, int
 	User.TokenExpiry = tokenExpiry
 
 	db.DatabaseStructure.Users[id] = User
-	marshaledData, err := json.Marshal(db.DatabaseStructure)
+	err = writeFile(db)
 	if err != nil {
-		return User, 0, "", err
-	}
-
-	err = os.WriteFile(db.path, marshaledData, 0666)
-	if err != nil {
-		return User, 0, "", err
+		log.Fatalf("Not writing to database: %v", err)
 	}
 
 	return User, id, s, nil
@@ -230,17 +219,10 @@ func (db *DB) UpdateUser(password, email string, id int) (User, error) {
 		Email:    email,
 	}
 	db.DatabaseStructure.Users[id] = user
-
-	marshaledData, err := json.Marshal(db.DatabaseStructure)
+	err := writeFile(db)
 	if err != nil {
-		return user, err
+		log.Fatalf("Not writing to database: %v", err)
 	}
-
-	err = os.WriteFile(db.path, marshaledData, 0666)
-	if err != nil {
-		return user, err
-	}
-
 	return user, nil
 
 }
@@ -256,4 +238,17 @@ func createRefreshToken() (string, time.Time, error) {
 	expiry := time.Now().Add(time.Duration(24*60) * time.Hour)
 
 	return refreshToken, expiry, nil
+}
+
+func writeFile(db *DB) error {
+	marshaledData, err := json.Marshal(db.DatabaseStructure)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(db.path, marshaledData, 0666)
+	if err != nil {
+		return err
+	}
+	return nil
 }
