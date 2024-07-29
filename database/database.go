@@ -1,8 +1,11 @@
 package database
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -24,9 +27,11 @@ type Chirp struct {
 }
 
 type User struct {
-	Password         []byte `json:"password"`
-	Email            string `json:"email"`
-	ExpiresInSeconds int    `json:"expires_in_seconds"`
+	Password         []byte    `json:"password"`
+	Email            string    `json:"email"`
+	ExpiresInSeconds int       `json:"expires_in_seconds"`
+	RefreshToken     string    `json:"refresh_token"`
+	TokenExpiry      time.Time `json:"token_expiry"`
 }
 
 type DBStructure struct {
@@ -184,7 +189,7 @@ func (db *DB) GetUser(email, password, jwtSecret string, expires int) (User, int
 
 	now := time.Now()
 	if expires == 0 {
-		expires = 10000
+		expires = 3600
 	}
 	expiresAt := time.Now().Add(time.Duration(expires) * time.Second)
 	key = []byte(jwtSecret)
@@ -200,6 +205,14 @@ func (db *DB) GetUser(email, password, jwtSecret string, expires int) (User, int
 		log.Fatalf("Bad SignedString: %s", err)
 	}
 
+	refreshLength := 32
+	refreshBytes := make([]byte, refreshLength)
+	_, err = rand.Read([]byte(refreshBytes))
+	refresh_token := hex.EncodeToString(refreshBytes)
+
+	fmt.Printf("\n\nREFRESH TOKEN == %v", refresh_token)
+	User.RefreshToken = refresh_token
+	User.TokenExpiry = time.Now().Add(time.Duration(24*60) * time.Hour)
 	return User, id, s, nil
 }
 

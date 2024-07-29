@@ -14,12 +14,13 @@ import (
 )
 
 type returnVals struct {
-	Error    string `json:"error,omitempty"`
-	Id       int    `json:"id,omitempty"`
-	Body     string `json:"body,omitempty"`
-	Email    string `json:"email,omitempty"`
-	Token    string `json:"token,omitempty"`
-	Password []byte `json:"password,omitempty"`
+	Error        string `json:"error,omitempty"`
+	Id           int    `json:"id,omitempty"`
+	Body         string `json:"body,omitempty"`
+	Email        string `json:"email,omitempty"`
+	Token        string `json:"token,omitempty"`
+	Password     []byte `json:"password,omitempty"`
+	RefreshToken string `json:"refresh_token,omitempty"`
 }
 
 type acceptedVals struct {
@@ -140,11 +141,9 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 		}
 		tokenString := tokenParts[1]
 		fmt.Printf("\nTOKEN STRING == %v\n\n", tokenString)
-		fmt.Println("\n\nJUST BEFORE MYCUSTOMCLAIMS STRUCT TYPED\n\n")
 		type MyCustomClaims struct {
 			jwt.RegisteredClaims
 		}
-		fmt.Println("JUST BEFORE PARSEWITHCLAIMS\n\n")
 		token, err := jwt.ParseWithClaims(tokenString, &MyCustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 			return []byte(jwtSecret), nil
 		})
@@ -207,11 +206,12 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	payload := &returnVals{
-		Id:    id,
-		Email: user.Email,
-		Token: token,
+		Id:           id,
+		Email:        user.Email,
+		Token:        token,
+		RefreshToken: user.RefreshToken,
 	}
-	fmt.Printf("PAYLOAD == %v", payload)
+	fmt.Printf("\nPAYLOAD == %v\n", payload)
 	respondWithJSON(w, 200, payload)
 }
 
