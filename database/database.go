@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -204,15 +203,22 @@ func (db *DB) GetUser(email, password, jwtSecret string, expires int) (User, int
 	if err != nil {
 		log.Fatalf("Bad SignedString: %s", err)
 	}
+	refreshToken, tokenExpiry, err := createRefreshToken()
 
-	refreshLength := 32
-	refreshBytes := make([]byte, refreshLength)
-	_, err = rand.Read([]byte(refreshBytes))
-	refresh_token := hex.EncodeToString(refreshBytes)
+	User.RefreshToken = refreshToken
+	User.TokenExpiry = tokenExpiry
 
-	fmt.Printf("\n\nREFRESH TOKEN == %v", refresh_token)
-	User.RefreshToken = refresh_token
-	User.TokenExpiry = time.Now().Add(time.Duration(24*60) * time.Hour)
+	db.DatabaseStructure.Users[id] = User
+	marshaledData, err := json.Marshal(db.DatabaseStructure)
+	if err != nil {
+		return User, 0, "", err
+	}
+
+	err = os.WriteFile(db.path, marshaledData, 0666)
+	if err != nil {
+		return User, 0, "", err
+	}
+
 	return User, id, s, nil
 }
 
@@ -237,4 +243,17 @@ func (db *DB) UpdateUser(password, email string, id int) (User, error) {
 
 	return user, nil
 
+}
+
+func createRefreshToken() (string, time.Time, error) {
+	refreshLength := 32
+	refreshBytes := make([]byte, refreshLength)
+	_, err := rand.Read([]byte(refreshBytes))
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	refreshToken := hex.EncodeToString(refreshBytes)
+	expiry := time.Now().Add(time.Duration(24*60) * time.Hour)
+
+	return refreshToken, expiry, nil
 }
