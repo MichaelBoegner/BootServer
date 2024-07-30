@@ -156,7 +156,7 @@ func (db *DB) CreateUser(email, password string) (User, error) {
 	return user, nil
 }
 
-func (db *DB) GetUser(email, password, jwtSecret string, expires int) (User, int, string, error) {
+func (db *DB) LoginUser(email, password, jwtSecret string, expires int) (User, int, string, error) {
 	db.mux.Lock()
 	defer db.mux.Unlock()
 	var (
@@ -209,6 +209,31 @@ func (db *DB) GetUser(email, password, jwtSecret string, expires int) (User, int
 	}
 
 	return User, id, s, nil
+}
+
+func (db *DB) GetUserbyRefreshToken(refreshToken string) (User, error) {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
+	var User User
+	found := false
+
+	for _, user := range db.DatabaseStructure.Users {
+		if user.RefreshToken == refreshToken {
+			User = user
+			found = true
+		}
+	}
+	if !found {
+		err := errors.New("refresh token not found")
+		return User, err
+	}
+
+	refreshExpiry := User.TokenExpiry
+	if refreshExpiry.After(time.Now()) {
+		return User, nil
+	}
+
 }
 
 func (db *DB) UpdateUser(password, email string, id int) (User, error) {

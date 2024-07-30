@@ -140,14 +140,14 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 			log.Fatal("Authoization header is malformed")
 		}
 		tokenString := tokenParts[1]
-		fmt.Printf("\nTOKEN STRING == %v\n\n", tokenString)
+
 		type MyCustomClaims struct {
 			jwt.RegisteredClaims
 		}
+
 		token, err := jwt.ParseWithClaims(tokenString, &MyCustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 			return []byte(jwtSecret), nil
 		})
-
 		if err != nil {
 			respondWithError(w, 401, "Unauthorized")
 			return
@@ -200,7 +200,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, id, token, err := cfg.db.GetUser(params.Email, params.Password, jwtSecret, params.ExpiresInSeconds)
+	user, id, token, err := cfg.db.LoginUser(params.Email, params.Password, jwtSecret, params.ExpiresInSeconds)
 	if err != nil {
 		respondWithError(w, 401, "Unauthorized")
 	}
@@ -211,8 +211,24 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		Token:        token,
 		RefreshToken: user.RefreshToken,
 	}
-	fmt.Printf("\nPAYLOAD == %v\n", payload)
+
 	respondWithJSON(w, 200, payload)
+}
+
+func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "application/json")
+
+	refreshTokenParts := strings.Split(r.Header.Get("Authorization"), " ")
+	if len(tokenParts) < 2 {
+		log.Fatal("Authoization header is malformed")
+	}
+	refreshTokenString := refreshTokenParts[1]
+
+	user, err := cfg.db.GetUserbyRefreshToken(refreshTokenString)
+	if err != nil {
+		respondWithError(w, 401, "Unauthorized")
+	}
+
 }
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
