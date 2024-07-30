@@ -229,8 +229,7 @@ func (db *DB) GetUserbyRefreshToken(refreshToken string) (User, error) {
 		return User, err
 	}
 
-	refreshExpiry := User.TokenExpiry
-	if refreshExpiry.After(time.Now()) {
+	if User.TokenExpiry.After(time.Now()) {
 		return User, nil
 	}
 
