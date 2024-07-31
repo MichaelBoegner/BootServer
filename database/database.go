@@ -229,10 +229,12 @@ func (db *DB) GetUserbyRefreshToken(refreshToken string) (User, error) {
 		return User, err
 	}
 
-	if User.TokenExpiry.After(time.Now()) {
-		return User, nil
+	if !User.TokenExpiry.After(time.Now()) {
+		err := errors.New("refresh token not found")
+		return User, err
 	}
 
+	return User, nil
 }
 
 func (db *DB) UpdateUser(password, email string, id int) (User, error) {
