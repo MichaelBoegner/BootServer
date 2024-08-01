@@ -160,8 +160,6 @@ func (db *DB) LoginUser(email, password, jwtSecret string, expires int) (User, i
 	db.mux.Lock()
 	defer db.mux.Unlock()
 	var (
-		key  []byte
-		t    *jwt.Token
 		User User
 		id   int
 	)
@@ -180,32 +178,9 @@ func (db *DB) LoginUser(email, password, jwtSecret string, expires int) (User, i
 		return User, id, "", errors.New("Email not found")
 	}
 
-	now := time.Now()
-	if expires == 0 {
-		expires = 3600
-	}
-	expiresAt := time.Now().Add(time.Duration(expires) * time.Second)
-	key = []byte(jwtSecret)
-	claims := jwt.RegisteredClaims{
-		Issuer:    "chirpy",
-		IssuedAt:  jwt.NewNumericDate(now),
-		ExpiresAt: jwt.NewNumericDate(expiresAt),
-		Subject:   strconv.Itoa(id),
-	}
-	t = jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	s, err := t.SignedString(key)
+	s, err := createJWTToken(id, expires)
 	if err != nil {
-		log.Fatalf("Bad SignedString: %s", err)
-	}
-	refreshToken, tokenExpiry, err := createRefreshToken()
-
-	User.RefreshToken = refreshToken
-	User.TokenExpiry = tokenExpiry
-
-	db.DatabaseStructure.Users[id] = User
-	err = writeFile(db)
-	if err != nil {
-		log.Fatalf("Not writing to database: %v", err)
+		log.Printf("JWT token failed to create: %v", err)
 	}
 
 	return User, id, s, nil
@@ -251,6 +226,35 @@ func (db *DB) UpdateUser(password, email string, id int) (User, error) {
 	}
 	return user, nil
 
+}
+
+func createJWTToken(id, expires int) (string, error) {
+	var (
+		key []byte
+		t   *jwt.Token
+	)
+
+	jwtSecret := os.Getenv("JWT_SECRET")
+	now := time.Now()
+	if expires == 0 {
+		expires = 3600
+	}
+	expiresAt := time.Now().Add(time.Duration(expires) * time.Second)
+	key = []byte(jwtSecret)
+	claims := jwt.RegisteredClaims{
+		Issuer:    "chirpy",
+		IssuedAt:  jwt.NewNumericDate(now),
+		ExpiresAt: jwt.NewNumericDate(expiresAt),
+		Subject:   strconv.Itoa(id),
+	}
+	t = jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	s, err := t.SignedString(key)
+	if err != nil {
+		log.Fatalf("Bad SignedString: %s", err)
+		return "", err
+	}
+
+	return s, nil
 }
 
 func createRefreshToken() (string, time.Time, error) {
