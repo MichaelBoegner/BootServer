@@ -232,17 +232,44 @@ func (db *DB) GetUserbyRefreshToken(refreshToken string) (User, string, error) {
 func (db *DB) UpdateUser(password, email string, id int) (User, error) {
 	db.mux.Lock()
 	defer db.mux.Unlock()
-	user := User{
-		Password: []byte(password),
-		Email:    email,
+
+	var (
+		User User
+	)
+
+	for i, user := range db.DatabaseStructure.Users {
+		if user.Email == email {
+			User = user
+			id = i
+		}
 	}
-	db.DatabaseStructure.Users[id] = user
-	err := writeFile(db)
+
+	var err error
+	User.Email = email
+	User.Password, err = bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
+	if err != nil {
+		log.Printf("Unable to create password: %v", err)
+		return User, err
+	}
+	db.DatabaseStructure.Users[id] = User
+
+	err = writeFile(db)
 	if err != nil {
 		log.Fatalf("Not writing to database: %v", err)
 	}
-	return user, nil
+	return User, nil
 
+}
+
+func (db *DB) RevokeRefreshToken(user User) error {
+	user.RefreshToken = ""
+	err := writeFile(db)
+	if err != nil {
+		log.Printf("Error writing to database: %v", err)
+		return err
+	}
+
+	return nil
 }
 
 func createJWTToken(id, expires int) (string, error) {

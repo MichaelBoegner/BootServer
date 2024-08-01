@@ -217,7 +217,6 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 
 func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
-	// jwtSecret := cfg.jwt
 
 	refreshTokenParts := strings.Split(r.Header.Get("Authorization"), " ")
 	if len(refreshTokenParts) < 2 {
@@ -234,6 +233,29 @@ func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
 		Token: token,
 	}
 	respondWithJSON(w, 200, payload)
+}
+
+func (cfg *apiConfig) handlerRevoke(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "application/json")
+
+	refreshTokenParts := strings.Split(r.Header.Get("Authorization"), " ")
+	if len(refreshTokenParts) < 2 {
+		log.Fatal("Authoization header is malformed")
+	}
+	refreshTokenString := refreshTokenParts[1]
+
+	user, _, err := cfg.db.GetUserbyRefreshToken(refreshTokenString)
+	if err != nil {
+		respondWithError(w, 401, "Unauthorized")
+	}
+
+	err = cfg.db.RevokeRefreshToken(user)
+	if err != nil {
+		log.Printf("Token not revoked: %v", err)
+	}
+
+	payload := &returnVals{}
+	respondWithJSON(w, 204, payload)
 }
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
