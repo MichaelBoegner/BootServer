@@ -225,14 +225,10 @@ func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
 	}
 	refreshTokenString := refreshTokenParts[1]
 
-	user, err := cfg.db.GetUserbyRefreshToken(refreshTokenString)
+	_, token, err := cfg.db.GetUserbyRefreshToken(refreshTokenString)
 	if err != nil {
 		respondWithError(w, 401, "Unauthorized")
 	}
-	// _, _, token, err := cfg.db.LoginUser(user.Email, user.Password, jwtSecret, user.ExpiresInSeconds)
-	// if err != nil {
-	// 	respondWithError(w, 401, "Unauthorized")
-	// }
 
 	payload := &returnVals{
 		Token: token,

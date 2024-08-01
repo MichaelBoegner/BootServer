@@ -178,38 +178,55 @@ func (db *DB) LoginUser(email, password, jwtSecret string, expires int) (User, i
 		return User, id, "", errors.New("Email not found")
 	}
 
-	s, err := createJWTToken(id, expires)
+	token, err := createJWTToken(id, expires)
+	refreshToken, tokenExpiry, err := createRefreshToken()
+
+	User.RefreshToken = refreshToken
+	User.TokenExpiry = tokenExpiry
+
+	db.DatabaseStructure.Users[id] = User
+	err = writeFile(db)
 	if err != nil {
-		log.Printf("JWT token failed to create: %v", err)
+		log.Fatalf("Not writing to database: %v", err)
 	}
 
-	return User, id, s, nil
+	return User, id, token, nil
 }
 
-func (db *DB) GetUserbyRefreshToken(refreshToken string) (User, error) {
+func (db *DB) GetUserbyRefreshToken(refreshToken string) (User, string, error) {
 	db.mux.Lock()
 	defer db.mux.Unlock()
 
-	var User User
+	var (
+		User User
+		id   int
+	)
+
 	found := false
 
-	for _, user := range db.DatabaseStructure.Users {
+	for i, user := range db.DatabaseStructure.Users {
 		if user.RefreshToken == refreshToken {
 			User = user
+			id = i
 			found = true
 		}
 	}
 	if !found {
 		err := errors.New("refresh token not found")
-		return User, err
+		return User, "", err
 	}
 
 	if !User.TokenExpiry.After(time.Now()) {
 		err := errors.New("refresh token not found")
-		return User, err
+		return User, "", err
 	}
 
-	return User, nil
+	token, err := createJWTToken(id, 0)
+	if err != nil {
+		log.Printf("JWT token not created: %v", err)
+	}
+
+	return User, token, nil
 }
 
 func (db *DB) UpdateUser(password, email string, id int) (User, error) {
