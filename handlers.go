@@ -219,10 +219,12 @@ func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 
 	refreshTokenParts := strings.Split(r.Header.Get("Authorization"), " ")
+	fmt.Printf("\nRefreshTokenParts: %v", refreshTokenParts)
 	if len(refreshTokenParts) < 2 {
-		log.Fatal("Authoization header is malformed")
+		respondWithError(w, 401, "Unauthorized")
 	}
 	refreshTokenString := refreshTokenParts[1]
+	fmt.Printf("\nRefreshTokenSTRING: %v", refreshTokenString)
 
 	_, token, err := cfg.db.GetUserbyRefreshToken(refreshTokenString)
 	if err != nil {

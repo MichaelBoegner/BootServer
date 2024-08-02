@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -232,18 +233,10 @@ func (db *DB) GetUserbyRefreshToken(refreshToken string) (User, string, error) {
 func (db *DB) UpdateUser(password, email string, id int) (User, error) {
 	db.mux.Lock()
 	defer db.mux.Unlock()
+	User := db.DatabaseStructure.Users[id]
 
-	var (
-		User User
-	)
-
-	for i, user := range db.DatabaseStructure.Users {
-		if user.Email == email {
-			User = user
-			id = i
-		}
-	}
-
+	fmt.Printf("\nUser before assignments: %v\n", User)
+	fmt.Printf("\nDB user by id: %v\n", db.DatabaseStructure.Users[id])
 	var err error
 	User.Email = email
 	User.Password, err = bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
@@ -252,6 +245,7 @@ func (db *DB) UpdateUser(password, email string, id int) (User, error) {
 		return User, err
 	}
 	db.DatabaseStructure.Users[id] = User
+	fmt.Printf("\nUser: %v", User)
 
 	err = writeFile(db)
 	if err != nil {
@@ -262,7 +256,22 @@ func (db *DB) UpdateUser(password, email string, id int) (User, error) {
 }
 
 func (db *DB) RevokeRefreshToken(user User) error {
-	user.RefreshToken = ""
+	var (
+		id       int
+		copyUser User
+	)
+
+	for i, User := range db.DatabaseStructure.Users {
+		if User.RefreshToken == user.RefreshToken {
+			id = i
+			copyUser = User
+		}
+	}
+
+	copyUser.RefreshToken = ""
+
+	db.DatabaseStructure.Users[id] = copyUser
+
 	err := writeFile(db)
 	if err != nil {
 		log.Printf("Error writing to database: %v", err)
