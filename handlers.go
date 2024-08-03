@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -22,6 +21,7 @@ type returnVals struct {
 	Token        string `json:"token,omitempty"`
 	Password     []byte `json:"password,omitempty"`
 	RefreshToken string `json:"refresh_token,omitempty"`
+	AuthorID     int    `json:"author_id,omitempty"`
 }
 
 type acceptedVals struct {
@@ -57,7 +57,11 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Printf("Error: %v", err)
 		}
-		fmt.Println(tokenString)
+
+		authorID, token := verifyToken(tokenString, w)
+		if !token {
+			respondWithError(w, 401, "Unauthorized")
+		}
 
 		if len(params.Body) <= 140 {
 			splitBody := strings.Split(params.Body, " ")
@@ -71,10 +75,11 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 			joinedBody := strings.Join(splitBody, " ")
 
 			payload := &returnVals{
-				Body: joinedBody,
+				Body:     joinedBody,
+				AuthorID: authorID,
 			}
 
-			_, err := cfg.db.CreateChirp(payload.Body)
+			_, err := cfg.db.CreateChirp(payload.Body, authorID)
 			if err != nil {
 				log.Printf("Chirp not created by CreateChirp(): %v", err)
 			}
@@ -102,12 +107,44 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 		} else if len(split_path) == 4 && split_path[3] == "" {
 			var payload []returnVals
 			for k, v := range cfg.db.DatabaseStructure.Chirps {
-				payload = append(payload, returnVals{Id: k, Body: v.Body})
+				payload = append(payload, returnVals{Id: k, Body: v.Body, AuthorID: v.AuthorID})
 			}
 			sort.SliceStable(payload, func(i, j int) bool { return payload[i].Id < payload[j].Id })
 			respondWithJSON(w, 200, payload)
 		} else {
 			respondWithError(w, 400, "Invalid path")
+		}
+	case http.MethodDelete:
+		path := r.URL.Path
+		split_path := strings.Split(path, "/")
+
+		if len(split_path) == 4 && split_path[3] != "" {
+			dynamic_id, err := strconv.Atoi(split_path[3])
+			if err != nil {
+				respondWithError(w, 404, "Invalid ID")
+				return
+			}
+
+			tokenString, err := getHeaderToken(r)
+			if err != nil {
+				log.Printf("Error: %v", err)
+			}
+
+			_, token := verifyToken(tokenString, w)
+
+			if !token {
+				respondWithError(w, 403, "Unauthorized")
+				return
+			}
+
+			deleted := cfg.db.DeleteChirp(dynamic_id)
+			if !deleted {
+				respondWithError(w, 401, "Chirp not deleted")
+			}
+
+			payload := &returnVals{}
+			respondWithJSON(w, 204, payload)
+
 		}
 	}
 }
@@ -164,36 +201,6 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-}
-
-func verifyToken(tokenString string, w http.ResponseWriter) (int, bool) {
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		log.Fatal("JWT secret is not set")
-	}
-
-	token, err := jwt.ParseWithClaims(tokenString, &MyCustomClaims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(jwtSecret), nil
-	})
-	if err != nil {
-		respondWithError(w, 401, "Unauthorized")
-		return 0, true
-	}
-	if token == nil {
-		log.Fatal("Token parsing resulted in nil token")
-	}
-
-	idString, err := token.Claims.GetSubject()
-	if err != nil {
-		respondWithError(w, 500, "Internal Server Error")
-		return 0, false
-	}
-
-	id, err := strconv.Atoi(idString)
-	if err != nil {
-		log.Fatalf("ID not converted from string to int: %v", err)
-	}
-	return id, true
 }
 
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
@@ -260,6 +267,46 @@ func (cfg *apiConfig) handlerRevoke(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, 204, payload)
 }
 
+func getHeaderToken(r *http.Request) (string, error) {
+	tokenParts := strings.Split(r.Header.Get("Authorization"), " ")
+	if len(tokenParts) < 2 {
+		err := errors.New("Authoization header is malformed")
+		log.Fatal("\nError: %v", err)
+		return "", err
+	}
+	return tokenParts[1], nil
+}
+
+func verifyToken(tokenString string, w http.ResponseWriter) (int, bool) {
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("JWT secret is not set")
+	}
+
+	token, err := jwt.ParseWithClaims(tokenString, &MyCustomClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return []byte(jwtSecret), nil
+	})
+	if err != nil {
+		respondWithError(w, 401, "Unauthorized")
+		return 0, true
+	}
+	if token == nil {
+		log.Fatal("Token parsing resulted in nil token")
+	}
+
+	idString, err := token.Claims.GetSubject()
+	if err != nil {
+		respondWithError(w, 500, "Internal Server Error")
+		return 0, false
+	}
+
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		log.Fatalf("ID not converted from string to int: %v", err)
+	}
+	return id, true
+}
+
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	w.Header().Add("Content-Type", "application/json")
 	data, err := json.Marshal(payload)
@@ -288,14 +335,4 @@ func respondWithError(w http.ResponseWriter, code int, msg string) {
 
 	w.WriteHeader(code)
 	w.Write(data)
-}
-
-func getHeaderToken(r *http.Request) (string, error) {
-	tokenParts := strings.Split(r.Header.Get("Authorization"), " ")
-	if len(tokenParts) < 2 {
-		err := errors.New("Authoization header is malformed")
-		log.Fatal("\nError: %v", err)
-		return "", err
-	}
-	return tokenParts[1], nil
 }

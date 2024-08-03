@@ -98,12 +98,13 @@ func (db *DB) LoadDB() (*DBStructure, error) {
 	return db.DatabaseStructure, nil
 }
 
-func (db *DB) CreateChirp(body string) (Chirp, error) {
+func (db *DB) CreateChirp(body string, authorID int) (Chirp, error) {
 	db.mux.Lock()
 	defer db.mux.Unlock()
 
 	chirp := Chirp{
-		Body: body,
+		Body:     body,
+		AuthorID: authorID,
 	}
 
 	nextID := len(db.DatabaseStructure.Chirps) + 1
@@ -132,6 +133,19 @@ func (db *DB) GetChirp(id int) (Chirp, error) {
 		return chirp, err
 	}
 	return chirp, nil
+}
+
+func (db *DB) DeleteChirp(id int) bool {
+	db.mux.RLock()
+	defer db.mux.RUnlock()
+
+	delete(db.DatabaseStructure.Chirps, id)
+	var blankChirp Chirp
+
+	if db.DatabaseStructure.Chirps[id] != blankChirp {
+		return false
+	}
+	return true
 }
 
 func (db *DB) CreateUser(email, password string) (User, error) {
@@ -253,7 +267,6 @@ func (db *DB) UpdateUser(password, email string, id int) (User, error) {
 		log.Fatalf("Not writing to database: %v", err)
 	}
 	return User, nil
-
 }
 
 func (db *DB) RevokeRefreshToken(user User) error {
