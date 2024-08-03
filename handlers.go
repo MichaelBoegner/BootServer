@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -50,6 +51,11 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		tokenString, err := getHeaderToken(r)
+		if err != nil {
+			log.Printf("Error: %v", err)
+		}
+		fmt.Println(tokenString)
 		if len(params.Body) <= 140 {
 			splitBody := strings.Split(params.Body, " ")
 
@@ -135,11 +141,10 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 			log.Fatal("JWT secret is not set")
 		}
 
-		tokenParts := strings.Split(r.Header.Get("Authorization"), " ")
-		if len(tokenParts) < 2 {
-			log.Fatal("Authoization header is malformed")
+		tokenString, err := getHeaderToken(r)
+		if err != nil {
+			log.Printf("Error: %v", err)
 		}
-		tokenString := tokenParts[1]
 
 		type MyCustomClaims struct {
 			jwt.RegisteredClaims
@@ -162,7 +167,6 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		fmt.Printf("\nID STRING == %v", idString)
 		id, err := strconv.Atoi(idString)
 		if err != nil {
 			log.Fatalf("ID not converted from string to int: %v", err)
@@ -218,13 +222,10 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 
-	refreshTokenParts := strings.Split(r.Header.Get("Authorization"), " ")
-	fmt.Printf("\nRefreshTokenParts: %v", refreshTokenParts)
-	if len(refreshTokenParts) < 2 {
-		respondWithError(w, 401, "Unauthorized")
+	refreshTokenString, err := getHeaderToken(r)
+	if err != nil {
+		log.Printf("Error: %v", err)
 	}
-	refreshTokenString := refreshTokenParts[1]
-	fmt.Printf("\nRefreshTokenSTRING: %v", refreshTokenString)
 
 	_, token, err := cfg.db.GetUserbyRefreshToken(refreshTokenString)
 	if err != nil {
@@ -240,11 +241,10 @@ func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
 func (cfg *apiConfig) handlerRevoke(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 
-	refreshTokenParts := strings.Split(r.Header.Get("Authorization"), " ")
-	if len(refreshTokenParts) < 2 {
-		log.Fatal("Authoization header is malformed")
+	refreshTokenString, err := getHeaderToken(r)
+	if err != nil {
+		log.Printf("Error: %v", err)
 	}
-	refreshTokenString := refreshTokenParts[1]
 
 	user, _, err := cfg.db.GetUserbyRefreshToken(refreshTokenString)
 	if err != nil {
@@ -287,4 +287,14 @@ func respondWithError(w http.ResponseWriter, code int, msg string) {
 
 	w.WriteHeader(code)
 	w.Write(data)
+}
+
+func getHeaderToken(r *http.Request) (string, error) {
+	tokenParts := strings.Split(r.Header.Get("Authorization"), " ")
+	if len(tokenParts) < 2 {
+		err := errors.New("Authoization header is malformed")
+		log.Fatal("\nError: %v", err)
+		return "", err
+	}
+	return tokenParts[1], nil
 }
