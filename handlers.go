@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -42,17 +43,13 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error loading database: %s", err)
 	}
 
+	params, err := getParams(r, w)
+	if err != nil {
+		log.Printf("\nError: %v", err)
+	}
+
 	switch r.Method {
 	case http.MethodPost:
-		decoder := json.NewDecoder(r.Body)
-		params := acceptedVals{}
-		err := decoder.Decode(&params)
-		if err != nil {
-			log.Printf("Error decoding parameters: %s", err)
-			w.WriteHeader(500)
-			return
-		}
-
 		tokenString, err := getHeaderToken(r)
 		if err != nil {
 			log.Printf("Error: %v", err)
@@ -61,6 +58,7 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 		authorID, token := verifyToken(tokenString, w)
 		if !token {
 			respondWithError(w, 401, "Unauthorized")
+			return
 		}
 
 		if len(params.Body) <= 140 {
@@ -87,10 +85,11 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 			payload.Id = len(cfg.db.DatabaseStructure.Chirps)
 
 			respondWithJSON(w, 201, payload)
+			return
 		} else {
 			respondWithError(w, 400, "Body must be 140 characters or less")
+			return
 		}
-
 	case http.MethodGet:
 		path := r.URL.Path
 		split_path := strings.Split(path, "/")
@@ -104,6 +103,7 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 			}
 			payload := returnVals{Id: dynamic_id, Body: chirp.Body}
 			respondWithJSON(w, 200, payload)
+			return
 		} else if len(split_path) == 4 && split_path[3] == "" {
 			var payload []returnVals
 			for k, v := range cfg.db.DatabaseStructure.Chirps {
@@ -111,53 +111,61 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 			}
 			sort.SliceStable(payload, func(i, j int) bool { return payload[i].Id < payload[j].Id })
 			respondWithJSON(w, 200, payload)
+			return
 		} else {
 			respondWithError(w, 400, "Invalid path")
+			return
 		}
 	case http.MethodDelete:
+		fmt.Println("\nDelete Chirp Firing")
 		path := r.URL.Path
 		split_path := strings.Split(path, "/")
+		fmt.Printf("\nSplit_path: %v", split_path)
 
 		if len(split_path) == 4 && split_path[3] != "" {
+			fmt.Println("\nif firing")
 			dynamic_id, err := strconv.Atoi(split_path[3])
+			fmt.Printf("\nDynamic ID: %v\n", dynamic_id)
 			if err != nil {
+				fmt.Printf("\nError Fired: %v", err)
 				respondWithError(w, 404, "Invalid ID")
 				return
 			}
 
 			tokenString, err := getHeaderToken(r)
+			fmt.Printf("\nTokenString returned: %v", tokenString)
 			if err != nil {
 				log.Printf("Error: %v", err)
 			}
 
-			_, token := verifyToken(tokenString, w)
-
+			authorID, token := verifyToken(tokenString, w)
 			if !token {
 				respondWithError(w, 403, "Unauthorized")
 				return
 			}
+			fmt.Printf("\nAuthorID: %v", authorID)
 
-			deleted := cfg.db.DeleteChirp(dynamic_id)
+			deleted := cfg.db.DeleteChirp(dynamic_id, authorID)
 			if !deleted {
-				respondWithError(w, 401, "Chirp not deleted")
+				fmt.Printf("\nNot deleted: %v", deleted)
+				respondWithError(w, 403, "Unauthorized")
+				return
 			}
 
 			payload := &returnVals{}
+			fmt.Printf("\nPayload: %v", payload)
 			respondWithJSON(w, 204, payload)
-
+			return
 		}
 	}
 }
 
 func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	params := acceptedVals{}
-	err := decoder.Decode(&params)
+	params, err := getParams(r, w)
 	if err != nil {
-		log.Printf("Error decoding parameters: %s", err)
-		w.WriteHeader(500)
-		return
+		log.Printf("\nError: %v", err)
 	}
+
 	switch r.Method {
 	case http.MethodPost:
 		user, err := cfg.db.CreateUser(params.Email, params.Password)
@@ -198,21 +206,15 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 		}
 
 		respondWithJSON(w, 200, payload)
-
 	}
-
 }
 
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	jwtSecret := cfg.jwt
 
-	decoder := json.NewDecoder(r.Body)
-	params := acceptedVals{}
-	err := decoder.Decode(&params)
+	params, err := getParams(r, w)
 	if err != nil {
-		log.Printf("Error decoding parameters: %s", err)
-		w.WriteHeader(500)
-		return
+		log.Printf("\nError: %v", err)
 	}
 
 	user, id, token, err := cfg.db.LoginUser(params.Email, params.Password, jwtSecret, params.ExpiresInSeconds)
@@ -277,6 +279,19 @@ func getHeaderToken(r *http.Request) (string, error) {
 	return tokenParts[1], nil
 }
 
+func getParams(r *http.Request, w http.ResponseWriter) (acceptedVals, error) {
+	decoder := json.NewDecoder(r.Body)
+	params := acceptedVals{}
+	err := decoder.Decode(&params)
+	if err != nil {
+		log.Printf("Error decoding parameters: %s", err)
+		w.WriteHeader(500)
+		return params, err
+	}
+
+	return params, nil
+}
+
 func verifyToken(tokenString string, w http.ResponseWriter) (int, bool) {
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
@@ -308,28 +323,29 @@ func verifyToken(tokenString string, w http.ResponseWriter) (int, bool) {
 }
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+	fmt.Printf("\nrespondWithJSON with code: %v and payload: %v", code, payload)
 	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(code)
 	data, err := json.Marshal(payload)
 	if err != nil {
 		log.Printf("Error marshalling JSON: %s", err)
-		respondWithError(w, 500, "Internal Server Error")
 		return
 	}
 	log.Printf("Responding with status: %d", code)
-	w.WriteHeader(code)
+
 	w.Write(data)
+	return
 }
 
 func respondWithError(w http.ResponseWriter, code int, msg string) {
+	w.Header().Add("Content-Type", "application/json")
 	respBody := returnVals{
 		Error: msg,
 	}
-
+	fmt.Printf("\nrespondWithJSON with code: %v and message: %v", code, msg)
 	data, err := json.Marshal(respBody)
-
 	if err != nil {
 		log.Printf("Error marshalling JSON: %s", err)
-		w.WriteHeader(500)
 		return
 	}
 

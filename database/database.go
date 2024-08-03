@@ -135,13 +135,20 @@ func (db *DB) GetChirp(id int) (Chirp, error) {
 	return chirp, nil
 }
 
-func (db *DB) DeleteChirp(id int) bool {
+func (db *DB) DeleteChirp(id, authorID int) bool {
 	db.mux.RLock()
 	defer db.mux.RUnlock()
+	if db.DatabaseStructure.Chirps[id].AuthorID == authorID {
+		delete(db.DatabaseStructure.Chirps, id)
+	} else {
+		return false
+	}
+	err := writeFile(db)
+	if err != nil {
+		log.Printf("\nError: %v", err)
+	}
 
-	delete(db.DatabaseStructure.Chirps, id)
 	var blankChirp Chirp
-
 	if db.DatabaseStructure.Chirps[id] != blankChirp {
 		return false
 	}
