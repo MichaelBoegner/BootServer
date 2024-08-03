@@ -36,8 +36,6 @@ type MyCustomClaims struct {
 }
 
 func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-Type", "application/json")
-
 	var err error
 	cfg.db.DatabaseStructure, err = cfg.db.LoadDB()
 	if err != nil {
@@ -115,7 +113,6 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-Type", "application/json")
 	decoder := json.NewDecoder(r.Body)
 	params := acceptedVals{}
 	err := decoder.Decode(&params)
@@ -200,7 +197,6 @@ func verifyToken(tokenString string, w http.ResponseWriter) (int, bool) {
 }
 
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-Type", "application/json")
 	jwtSecret := cfg.jwt
 
 	decoder := json.NewDecoder(r.Body)
@@ -228,8 +224,6 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-Type", "application/json")
-
 	refreshTokenString, err := getHeaderToken(r)
 	if err != nil {
 		log.Printf("Error: %v", err)
@@ -247,8 +241,6 @@ func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *apiConfig) handlerRevoke(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-Type", "application/json")
-
 	refreshTokenString, err := getHeaderToken(r)
 	if err != nil {
 		log.Printf("Error: %v", err)
@@ -269,6 +261,7 @@ func (cfg *apiConfig) handlerRevoke(w http.ResponseWriter, r *http.Request) {
 }
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+	w.Header().Add("Content-Type", "application/json")
 	data, err := json.Marshal(payload)
 	if err != nil {
 		log.Printf("Error marshalling JSON: %s", err)
