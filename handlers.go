@@ -31,6 +31,10 @@ type acceptedVals struct {
 	ExpiresInSeconds int    `json:"expires_in_seconds,omitempty"`
 }
 
+type MyCustomClaims struct {
+	jwt.RegisteredClaims
+}
+
 func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 
@@ -56,6 +60,7 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Error: %v", err)
 		}
 		fmt.Println(tokenString)
+
 		if len(params.Body) <= 140 {
 			splitBody := strings.Split(params.Body, " ")
 
@@ -136,42 +141,15 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 		respondWithJSON(w, 201, payload)
 
 	case http.MethodPut:
-		jwtSecret := os.Getenv("JWT_SECRET")
-		if jwtSecret == "" {
-			log.Fatal("JWT secret is not set")
-		}
-
 		tokenString, err := getHeaderToken(r)
 		if err != nil {
 			log.Printf("Error: %v", err)
 		}
 
-		type MyCustomClaims struct {
-			jwt.RegisteredClaims
-		}
-
-		token, err := jwt.ParseWithClaims(tokenString, &MyCustomClaims{}, func(token *jwt.Token) (interface{}, error) {
-			return []byte(jwtSecret), nil
-		})
-		if err != nil {
+		id, token := verifyToken(tokenString, w)
+		if !token {
 			respondWithError(w, 401, "Unauthorized")
-			return
 		}
-
-		if token == nil {
-			log.Fatal("Token parsing resulted in nil token")
-		}
-		idString, err := token.Claims.GetSubject()
-		if err != nil {
-			respondWithError(w, 500, "Internal Server Error")
-			return
-		}
-
-		id, err := strconv.Atoi(idString)
-		if err != nil {
-			log.Fatalf("ID not converted from string to int: %v", err)
-		}
-		fmt.Printf("\nID INT == %v", id)
 
 		user, err := cfg.db.UpdateUser(params.Password, params.Email, id)
 		if err != nil {
@@ -189,6 +167,36 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 
 	}
 
+}
+
+func verifyToken(tokenString string, w http.ResponseWriter) (int, bool) {
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("JWT secret is not set")
+	}
+
+	token, err := jwt.ParseWithClaims(tokenString, &MyCustomClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return []byte(jwtSecret), nil
+	})
+	if err != nil {
+		respondWithError(w, 401, "Unauthorized")
+		return 0, true
+	}
+	if token == nil {
+		log.Fatal("Token parsing resulted in nil token")
+	}
+
+	idString, err := token.Claims.GetSubject()
+	if err != nil {
+		respondWithError(w, 500, "Internal Server Error")
+		return 0, false
+	}
+
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		log.Fatalf("ID not converted from string to int: %v", err)
+	}
+	return id, true
 }
 
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
