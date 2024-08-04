@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -43,20 +42,23 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error loading database: %s", err)
 	}
 
-	params, err := getParams(r, w)
-	if err != nil {
-		log.Printf("\nError: %v", err)
-	}
-
 	switch r.Method {
 	case http.MethodPost:
+
+		params, err := getParams(r, w)
+		if err != nil {
+			log.Printf("\nError: %v", err)
+		}
+
 		tokenString, err := getHeaderToken(r)
 		if err != nil {
 			log.Printf("Error: %v", err)
+			return
 		}
 
 		authorID, token := verifyToken(tokenString, w)
 		if !token {
+
 			respondWithError(w, 401, "Unauthorized")
 			return
 		}
@@ -117,46 +119,46 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case http.MethodDelete:
-		fmt.Println("\nDelete Chirp Firing")
+
 		path := r.URL.Path
 		split_path := strings.Split(path, "/")
-		fmt.Printf("\nSplit_path: %v", split_path)
 
 		if len(split_path) == 4 && split_path[3] != "" {
-			fmt.Println("\nif firing")
+
 			dynamic_id, err := strconv.Atoi(split_path[3])
-			fmt.Printf("\nDynamic ID: %v\n", dynamic_id)
+
 			if err != nil {
-				fmt.Printf("\nError Fired: %v", err)
+
 				respondWithError(w, 404, "Invalid ID")
 				return
 			}
 
 			tokenString, err := getHeaderToken(r)
-			fmt.Printf("\nTokenString returned: %v", tokenString)
+
 			if err != nil {
 				log.Printf("Error: %v", err)
 			}
 
 			authorID, token := verifyToken(tokenString, w)
 			if !token {
-				respondWithError(w, 403, "Unauthorized")
+				respondWithError(w, http.StatusForbidden, "Unauthorized")
 				return
 			}
-			fmt.Printf("\nAuthorID: %v", authorID)
 
 			deleted := cfg.db.DeleteChirp(dynamic_id, authorID)
 			if !deleted {
-				fmt.Printf("\nNot deleted: %v", deleted)
-				respondWithError(w, 403, "Unauthorized")
+
+				respondWithError(w, http.StatusForbidden, "Unauthorized")
 				return
 			}
 
 			payload := &returnVals{}
-			fmt.Printf("\nPayload: %v", payload)
+
 			respondWithJSON(w, 204, payload)
 			return
 		}
+
+		respondWithError(w, 403, "Unauthorized")
 	}
 }
 
@@ -284,8 +286,8 @@ func getParams(r *http.Request, w http.ResponseWriter) (acceptedVals, error) {
 	params := acceptedVals{}
 	err := decoder.Decode(&params)
 	if err != nil {
-		log.Printf("Error decoding parameters: %s", err)
-		w.WriteHeader(500)
+
+		respondWithError(w, 500, "Error decoding params")
 		return params, err
 	}
 
@@ -302,6 +304,7 @@ func verifyToken(tokenString string, w http.ResponseWriter) (int, bool) {
 		return []byte(jwtSecret), nil
 	})
 	if err != nil {
+
 		respondWithError(w, 401, "Unauthorized")
 		return 0, true
 	}
@@ -311,7 +314,8 @@ func verifyToken(tokenString string, w http.ResponseWriter) (int, bool) {
 
 	idString, err := token.Claims.GetSubject()
 	if err != nil {
-		respondWithError(w, 500, "Internal Server Error")
+
+		respondWithError(w, 403, "Unauthorized")
 		return 0, false
 	}
 
@@ -323,18 +327,21 @@ func verifyToken(tokenString string, w http.ResponseWriter) (int, bool) {
 }
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
-	fmt.Printf("\nrespondWithJSON with code: %v and payload: %v", code, payload)
-	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(code)
+
+	w.Header().Set("Content-Type", "application/json") // Use Set instead of Add to avoid duplicates
+
+	// Marshal the payload first
 	data, err := json.Marshal(payload)
 	if err != nil {
 		log.Printf("Error marshalling JSON: %s", err)
+		// Handle error without another call to WriteHeader
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	log.Printf("Responding with status: %d", code)
 
+	// Write the header and the data after ensuring the payload is marshalled
+	w.WriteHeader(code)
 	w.Write(data)
-	return
 }
 
 func respondWithError(w http.ResponseWriter, code int, msg string) {
@@ -342,7 +349,7 @@ func respondWithError(w http.ResponseWriter, code int, msg string) {
 	respBody := returnVals{
 		Error: msg,
 	}
-	fmt.Printf("\nrespondWithJSON with code: %v and message: %v", code, msg)
+
 	data, err := json.Marshal(respBody)
 	if err != nil {
 		log.Printf("Error marshalling JSON: %s", err)
