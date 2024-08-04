@@ -136,6 +136,30 @@ func (db *DB) GetChirp(id int) (Chirp, error) {
 	return chirp, nil
 }
 
+func (db *DB) GetChirpsByAuthor(authorId int) (map[int]Chirp, error) {
+	fmt.Printf("\nGetGhirpsByAuthor firing\n")
+	db.mux.RLock()
+	defer db.mux.RUnlock()
+
+	var blankChirps map[int]Chirp
+	chirps := make(map[int]Chirp)
+
+	for i, chirp := range db.DatabaseStructure.Chirps {
+		if chirp.AuthorID == authorId {
+			fmt.Printf("\nIf firing: %v, %v\n", chirp, i)
+			chirps[i] = chirp
+			fmt.Printf("\nThis shouldn't be firing: %v", chirps, i)
+		}
+	}
+	fmt.Printf("\nchirps appended found by author_id: %v\n", chirps)
+	if chirps == nil {
+		err := errors.New("No chirps returned by author_id")
+		return blankChirps, err
+	}
+
+	return chirps, nil
+}
+
 func (db *DB) DeleteChirp(id, authorID int) bool {
 	db.mux.RLock()
 	defer db.mux.RUnlock()

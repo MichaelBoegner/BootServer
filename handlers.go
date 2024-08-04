@@ -100,10 +100,36 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case http.MethodGet:
+		fmt.Printf("\nMethodGet Section Firing\n")
 		path := r.URL.Path
 		split_path := strings.Split(path, "/")
+		s := r.URL.Query().Get("author_id")
+		fmt.Printf("\nAuthor_id returned from param: %v\n", s)
 
-		if len(split_path) == 4 && split_path[3] != "" {
+		if s != "" {
+			authorID, err := strconv.Atoi(s)
+			fmt.Printf("\nauthorID converted to INT: %v\n", authorID)
+			if err != nil {
+				respondWithError(w, 500, "author_id did not convert to int")
+				return
+			}
+			chirps, err := cfg.db.GetChirpsByAuthor(authorID)
+			fmt.Printf("\nChirps returned by author id: %v\n", chirps)
+			if err != nil {
+				log.Printf("\nError: %v", err)
+				respondWithError(w, 401, "No chirps by that author")
+				return
+			}
+			var payload []returnVals
+			for k, v := range chirps {
+				payload = append(payload, returnVals{Id: k, Body: v.Body, AuthorID: v.AuthorID})
+			}
+			fmt.Printf("\npayload built: %v\n", payload)
+			sort.SliceStable(payload, func(i, j int) bool { return payload[i].Id < payload[j].Id })
+			respondWithJSON(w, 200, payload)
+			return
+
+		} else if len(split_path) == 4 && split_path[3] != "" {
 			dynamic_id, _ := strconv.Atoi(split_path[3])
 			chirp, err := cfg.db.GetChirp(dynamic_id)
 			if err != nil {
@@ -275,6 +301,17 @@ func (cfg *apiConfig) handlerRevoke(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *apiConfig) handlerWebhooks(w http.ResponseWriter, r *http.Request) {
+	token, err := getHeaderToken(r)
+	if err != nil {
+		respondWithError(w, 401, "")
+		return
+	}
+	api_key := os.Getenv("API_KEY")
+	if token != api_key {
+		respondWithError(w, 401, "")
+		return
+	}
+
 	params, err := getParams(r, w)
 	if err != nil {
 		log.Printf("\nError: %v", err)
@@ -301,7 +338,6 @@ func getHeaderToken(r *http.Request) (string, error) {
 	tokenParts := strings.Split(r.Header.Get("Authorization"), " ")
 	if len(tokenParts) < 2 {
 		err := errors.New("Authoization header is malformed")
-		log.Fatal("\nError: %v", err)
 		return "", err
 	}
 	return tokenParts[1], nil
