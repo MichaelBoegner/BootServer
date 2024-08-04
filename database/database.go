@@ -276,6 +276,8 @@ func (db *DB) UpdateUser(password, email string, id int) (User, error) {
 	return User, nil
 }
 
+func (db *DB) AddUpgradeBadge()
+
 func (db *DB) RevokeRefreshToken(user User) error {
 	var (
 		id       int

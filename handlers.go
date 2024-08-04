@@ -29,6 +29,8 @@ type acceptedVals struct {
 	Password         string `json:"password"`
 	Email            string `json:"email"`
 	ExpiresInSeconds int    `json:"expires_in_seconds,omitempty"`
+	Event            string `json:"event,omitempty"`
+	Data             string `json:"data,omitempty"`
 }
 
 type MyCustomClaims struct {
@@ -44,7 +46,6 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodPost:
-
 		params, err := getParams(r, w)
 		if err != nil {
 			log.Printf("\nError: %v", err)
@@ -124,17 +125,13 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 		split_path := strings.Split(path, "/")
 
 		if len(split_path) == 4 && split_path[3] != "" {
-
 			dynamic_id, err := strconv.Atoi(split_path[3])
-
 			if err != nil {
-
 				respondWithError(w, 404, "Invalid ID")
 				return
 			}
 
 			tokenString, err := getHeaderToken(r)
-
 			if err != nil {
 				log.Printf("Error: %v", err)
 			}
@@ -153,7 +150,6 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 			}
 
 			payload := &returnVals{}
-
 			respondWithJSON(w, 204, payload)
 			return
 		}
@@ -181,9 +177,7 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 			Email: user.Email,
 		}
 		payload.Id = len(cfg.db.DatabaseStructure.Users)
-
 		respondWithJSON(w, 201, payload)
-
 	case http.MethodPut:
 		tokenString, err := getHeaderToken(r)
 		if err != nil {
@@ -206,7 +200,6 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 			Id:    id,
 			Email: user.Email,
 		}
-
 		respondWithJSON(w, 200, payload)
 	}
 }
@@ -271,6 +264,18 @@ func (cfg *apiConfig) handlerRevoke(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, 204, payload)
 }
 
+func (cfg *apiConfig) handlerWebhooks(w http.ResponseWriter, r *http.Request) {
+	params, err := getParams(r, w)
+	if err != nil {
+		log.Printf("\nError: %v", err)
+	}
+	if params.Event != "user.upgraded" {
+		respondWithError(w, 204, "")
+		return
+	}
+
+}
+
 func getHeaderToken(r *http.Request) (string, error) {
 	tokenParts := strings.Split(r.Header.Get("Authorization"), " ")
 	if len(tokenParts) < 2 {
@@ -327,19 +332,15 @@ func verifyToken(tokenString string, w http.ResponseWriter) (int, bool) {
 }
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+	w.Header().Set("Content-Type", "application/json")
 
-	w.Header().Set("Content-Type", "application/json") // Use Set instead of Add to avoid duplicates
-
-	// Marshal the payload first
 	data, err := json.Marshal(payload)
 	if err != nil {
 		log.Printf("Error marshalling JSON: %s", err)
-		// Handle error without another call to WriteHeader
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
-	// Write the header and the data after ensuring the payload is marshalled
 	w.WriteHeader(code)
 	w.Write(data)
 }
