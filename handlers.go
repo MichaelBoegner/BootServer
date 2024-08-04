@@ -103,11 +103,10 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("\nMethodGet Section Firing\n")
 		path := r.URL.Path
 		split_path := strings.Split(path, "/")
-		s := r.URL.Query().Get("author_id")
-		fmt.Printf("\nAuthor_id returned from param: %v\n", s)
+		author_id := r.URL.Query().Get("author_id")
 
-		if s != "" {
-			authorID, err := strconv.Atoi(s)
+		if author_id != "" {
+			authorID, err := strconv.Atoi(author_id)
 			fmt.Printf("\nauthorID converted to INT: %v\n", authorID)
 			if err != nil {
 				respondWithError(w, 500, "author_id did not convert to int")
@@ -125,7 +124,12 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 				payload = append(payload, returnVals{Id: k, Body: v.Body, AuthorID: v.AuthorID})
 			}
 			fmt.Printf("\npayload built: %v\n", payload)
-			sort.SliceStable(payload, func(i, j int) bool { return payload[i].Id < payload[j].Id })
+			if r.URL.Query().Get("sort") == "desc" {
+				sort.SliceStable(payload, func(i, j int) bool { return payload[i].Id > payload[j].Id })
+			} else {
+				sort.SliceStable(payload, func(i, j int) bool { return payload[i].Id < payload[j].Id })
+			}
+
 			respondWithJSON(w, 200, payload)
 			return
 
@@ -140,14 +144,22 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 			respondWithJSON(w, 200, payload)
 			return
 		} else if len(split_path) == 4 && split_path[3] == "" {
+			fmt.Printf("\nelse if firing: %v\n", split_path)
 			var payload []returnVals
 			for k, v := range cfg.db.DatabaseStructure.Chirps {
 				payload = append(payload, returnVals{Id: k, Body: v.Body, AuthorID: v.AuthorID})
 			}
-			sort.SliceStable(payload, func(i, j int) bool { return payload[i].Id < payload[j].Id })
+
+			if r.URL.Query().Get("sort") == "desc" {
+				fmt.Printf("\nSORT Desc firing")
+				sort.SliceStable(payload, func(i, j int) bool { return payload[i].Id > payload[j].Id })
+			} else {
+				sort.SliceStable(payload, func(i, j int) bool { return payload[i].Id < payload[j].Id })
+			}
 			respondWithJSON(w, 200, payload)
 			return
 		} else {
+			fmt.Printf("\nElse firing for some reason\n")
 			respondWithError(w, 400, "Invalid path")
 			return
 		}
