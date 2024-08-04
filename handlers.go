@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -22,6 +23,7 @@ type returnVals struct {
 	Password     []byte `json:"password,omitempty"`
 	RefreshToken string `json:"refresh_token,omitempty"`
 	AuthorID     int    `json:"author_id,omitempty"`
+	IsChirpyRed  bool   `json:"is_chirpy_red,omitemtpy"`
 }
 
 type acceptedVals struct {
@@ -30,7 +32,11 @@ type acceptedVals struct {
 	Email            string `json:"email"`
 	ExpiresInSeconds int    `json:"expires_in_seconds,omitempty"`
 	Event            string `json:"event,omitempty"`
-	Data             string `json:"data,omitempty"`
+	Data             data   `json:"data,omitempty"`
+}
+
+type data struct {
+	UserID int `json:"user_id,omitempty"`
 }
 
 type MyCustomClaims struct {
@@ -177,7 +183,9 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 			Email: user.Email,
 		}
 		payload.Id = len(cfg.db.DatabaseStructure.Users)
+		payload.IsChirpyRed = cfg.db.DatabaseStructure.Users[payload.Id].IsChirpyRed
 		respondWithJSON(w, 201, payload)
+
 	case http.MethodPut:
 		tokenString, err := getHeaderToken(r)
 		if err != nil {
@@ -197,8 +205,9 @@ func (cfg *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 		}
 
 		payload := &returnVals{
-			Id:    id,
-			Email: user.Email,
+			Id:          id,
+			Email:       user.Email,
+			IsChirpyRed: cfg.db.DatabaseStructure.Users[id].IsChirpyRed,
 		}
 		respondWithJSON(w, 200, payload)
 	}
@@ -222,6 +231,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		Email:        user.Email,
 		Token:        token,
 		RefreshToken: user.RefreshToken,
+		IsChirpyRed:  cfg.db.DatabaseStructure.Users[id].IsChirpyRed,
 	}
 
 	respondWithJSON(w, 200, payload)
@@ -269,10 +279,21 @@ func (cfg *apiConfig) handlerWebhooks(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("\nError: %v", err)
 	}
+	fmt.Printf("\nParams: %v", params)
 	if params.Event != "user.upgraded" {
-		respondWithError(w, 204, "")
+		respondWithJSON(w, 204, "")
 		return
 	}
+
+	_, err = cfg.db.AddUpgradeBadge(params.Data.UserID)
+	if err != nil {
+		respondWithError(w, 404, "")
+		return
+	}
+	payload := &returnVals{}
+
+	respondWithJSON(w, 204, payload)
+	return
 
 }
 

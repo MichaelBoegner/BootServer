@@ -33,6 +33,7 @@ type User struct {
 	ExpiresInSeconds int       `json:"expires_in_seconds"`
 	RefreshToken     string    `json:"refresh_token"`
 	TokenExpiry      time.Time `json:"token_expiry"`
+	IsChirpyRed      bool      `json:"is_chirpy_red"`
 }
 
 type DBStructure struct {
@@ -160,7 +161,8 @@ func (db *DB) CreateUser(email, password string) (User, error) {
 	defer db.mux.Unlock()
 
 	user := User{
-		Email: email,
+		Email:       email,
+		IsChirpyRed: false,
 	}
 
 	var err error
@@ -266,17 +268,45 @@ func (db *DB) UpdateUser(password, email string, id int) (User, error) {
 		log.Printf("Unable to create password: %v", err)
 		return User, err
 	}
-	db.DatabaseStructure.Users[id] = User
-	fmt.Printf("\nUser: %v", User)
 
+	db.DatabaseStructure.Users[id] = User
 	err = writeFile(db)
 	if err != nil {
 		log.Fatalf("Not writing to database: %v", err)
 	}
+
 	return User, nil
 }
 
-func (db *DB) AddUpgradeBadge()
+func (db *DB) AddUpgradeBadge(id int) (User, error) {
+	var (
+		User    User
+		foundID int
+		found   bool
+	)
+
+	for i, user := range db.DatabaseStructure.Users {
+		if id == i {
+			User = user
+			foundID = i
+			found = true
+		}
+	}
+	if !found {
+		err := errors.New("User with user_id does not exist.")
+		return User, err
+	}
+
+	User.IsChirpyRed = true
+	db.DatabaseStructure.Users[foundID] = User
+
+	err := writeFile(db)
+	if err != nil {
+		log.Printf("\nDatabase not updated with upgraded badge")
+	}
+
+	return User, nil
+}
 
 func (db *DB) RevokeRefreshToken(user User) error {
 	var (
