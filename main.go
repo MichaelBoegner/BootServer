@@ -37,18 +37,16 @@ func main() {
 	fsHandler := apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
 	mux.Handle("/app/*", fsHandler)
 
-	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
-	mux.HandleFunc("GET /api/healthz", handlerReadiness)
-	mux.HandleFunc("GET /api/reset", apiCfg.handlerReset)
+	mux.HandleFunc("/admin/metrics", apiCfg.handlerMetrics)
+	mux.HandleFunc("/api/healthz", handlerReadiness)
+	mux.HandleFunc("/api/reset", apiCfg.handlerReset)
 
-	mux.HandleFunc("POST /api/chirps", apiCfg.handlerChirps)
-	mux.HandleFunc("/api/chirps/", apiCfg.handlerChirps)
-	mux.HandleFunc("POST /api/users", apiCfg.handlerUsers)
-	mux.HandleFunc("POST /api/login", apiCfg.handlerLogin)
-	mux.HandleFunc("PUT /api/users", apiCfg.handlerUsers)
-	mux.HandleFunc("POST /api/refresh", apiCfg.handlerRefresh)
-	mux.HandleFunc("POST /api/revoke", apiCfg.handlerRevoke)
-	mux.HandleFunc("POST /api/polka/webhooks", apiCfg.handlerWebhooks)
+	mux.HandleFunc("/api/chirps", apiCfg.handlerChirps)
+	mux.HandleFunc("/api/users", apiCfg.handlerUsers)
+	mux.HandleFunc("/api/login", apiCfg.handlerLogin)
+	mux.HandleFunc("/api/refresh", apiCfg.handlerRefresh)
+	mux.HandleFunc("/api/revoke", apiCfg.handlerRevoke)
+	mux.HandleFunc("/api/polka/webhooks", apiCfg.handlerWebhooks)
 
 	srv := &http.Server{
 		Addr:    ":" + port,
